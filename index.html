@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>자동 던전 RPG · BUILD M1-01</title>
+<title>자동 던전 RPG · BUILD M2-01</title>
 <style>
   /* ===== 전역 스타일 ===== */
   :root {
@@ -168,6 +168,73 @@
   }
   .정보칸.골드칸 .값 { color: var(--금색); }
 
+  /* ===== 강화 패널 ===== */
+  .강화판 {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .강화제목 {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--흐린글자);
+    margin: 4px 2px 2px;
+  }
+  .강화칸 {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #14161f;
+    border: 1px solid var(--테두리);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: var(--글자);
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color .12s ease, background .12s ease, transform .06s ease;
+  }
+  .강화칸:hover:not(:disabled) {
+    border-color: #4a5180;
+    background: #181b27;
+  }
+  .강화칸:active:not(:disabled) {
+    transform: scale(.99);
+  }
+  .강화칸.불가 {
+    opacity: .45;
+    cursor: not-allowed;
+  }
+  .강화머리 {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .강화이름 {
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .강화레벨 {
+    color: var(--흐린글자);
+    font-weight: 600;
+    font-size: 11px;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  .강화효과 {
+    font-size: 11px;
+    color: var(--흐린글자);
+  }
+  .강화비용 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--금색);
+    white-space: nowrap;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+
   .안내 {
     margin-top: 16px;
     text-align: center;
@@ -180,7 +247,7 @@
   <main class="게임판">
     <div class="머리말">
       <h1>⚔️ 자동 던전</h1>
-      <span class="빌드라벨">BUILD M1-01</span>
+      <span class="빌드라벨">BUILD M2-01</span>
     </div>
 
     <div class="층표시">
@@ -208,25 +275,56 @@
       </div>
     </div>
 
-    <p class="안내">영웅이 자동으로 전투합니다. 진행 상황은 자동 저장됩니다.</p>
+    <section class="강화판">
+      <div class="강화제목">강화</div>
+
+      <button class="강화칸" id="공격력버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">🗡️ 공격력 <span class="강화레벨" id="공격력레벨">Lv.0</span></span>
+          <span class="강화효과" id="공격력효과">공격력 10</span>
+        </span>
+        <span class="강화비용"><span id="공격력비용">20</span> 💰</span>
+      </button>
+
+      <button class="강화칸" id="공격속도버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">⚡ 공격속도 <span class="강화레벨" id="공격속도레벨">Lv.0</span></span>
+          <span class="강화효과" id="공격속도효과">주기 1.00초</span>
+        </span>
+        <span class="강화비용"><span id="공격속도비용">50</span> 💰</span>
+      </button>
+    </section>
+
+    <p class="안내">영웅이 자동 전투합니다. 골드로 강화하세요. 진행은 자동 저장됩니다.</p>
   </main>
 
 <script>
 /* =========================================================
-   자동 던전 RPG — M1 (영웅이 적 1명과 자동 전투하는 최소 뼈대)
+   자동 던전 RPG — M2 (M1 자동 전투 + 골드로 영웅 강화)
    - 영웅은 무조건 이긴다. 적은 반격하지 않는다.
+   - 골드로 공격력 / 공격속도 강화 (골드 소비처 도입).
    ========================================================= */
 
-  const 저장키 = "dungeon_save_v1";
+  const 저장키 = "dungeon_save_v2";
+  const 이전저장키 = "dungeon_save_v1"; // M1 세이브 — v2가 없을 때 이어받기용
 
   // ----- 밸런스 수치 (자유롭게 조정 가능) -----
   const 설정 = {
-    영웅공격력: 10,      // 한 번 칠 때 깎는 적 체력
-    영웅공격주기: 1.0,   // 초 — 이 간격마다 한 번 공격
+    기본공격력: 10,      // 강화 0레벨일 때 한 번 칠 때 깎는 적 체력
+    기본공격주기: 1.0,   // 초 — 강화 0레벨일 때 공격 간격
     적시작체력: 30,      // 1층 적의 체력
     처치골드: 5,         // 적 1명 처치 시 얻는 골드
     체력증가배율: 1.15,  // 다음 층 적 체력 = 이전 × 1.15
-    틱간격: 100          // ms — 게임 루프 주기
+    틱간격: 100,         // ms — 게임 루프 주기
+
+    // --- 강화(M2) ---
+    공격력증가량: 5,      // 공격력 강화 레벨당 +공격력
+    공격력기본비용: 20,   // 공격력 강화 0레벨 구매 비용
+    공격력비용배율: 1.5,  // 다음 비용 = 기본 × 배율^레벨
+    공격속도감소량: 0.05, // 공격속도 강화 레벨당 -공격주기(초)
+    공격주기하한: 0.2,    // 공격주기 최소값(초)
+    공격속도기본비용: 50, // 공격속도 강화 0레벨 구매 비용
+    공격속도비용배율: 1.8 // 다음 비용 = 기본 × 배율^레벨
   };
 
   // ----- 적 도감 (표시용 이름·그림, 층에 따라 순환) -----
@@ -241,10 +339,12 @@
     { 이름: "용",     그림: "🐉" }
   ];
 
-  // ----- 게임 상태 (저장 대상: 골드·현재층) -----
+  // ----- 게임 상태 (저장 대상: 골드·현재층·강화 레벨) -----
   const 상태 = {
     골드: 0,
-    현재층: 1
+    현재층: 1,
+    공격력레벨: 0,   // 공격력 강화 횟수
+    공격속도레벨: 0  // 공격속도 강화 횟수
   };
 
   // ----- 현재 적 상태 (저장하지 않음 — 층에서 다시 계산) -----
@@ -260,12 +360,39 @@
     적그림: document.getElementById("적그림"),
     적이름: document.getElementById("적이름"),
     체력바: document.getElementById("체력바"),
-    체력수치: document.getElementById("체력수치")
+    체력수치: document.getElementById("체력수치"),
+    공격력버튼: document.getElementById("공격력버튼"),
+    공격력레벨: document.getElementById("공격력레벨"),
+    공격력효과: document.getElementById("공격력효과"),
+    공격력비용: document.getElementById("공격력비용"),
+    공격속도버튼: document.getElementById("공격속도버튼"),
+    공격속도레벨: document.getElementById("공격속도레벨"),
+    공격속도효과: document.getElementById("공격속도효과"),
+    공격속도비용: document.getElementById("공격속도비용")
   };
 
   // 층 번호로 적 최대 체력 계산
   function 층별적체력(층) {
     return Math.round(설정.적시작체력 * Math.pow(설정.체력증가배율, 층 - 1));
+  }
+
+  // 공격속도 강화 최대 레벨 (공격주기가 하한에 닿는 레벨)
+  const 공격속도최대레벨 = Math.round((설정.기본공격주기 - 설정.공격주기하한) / 설정.공격속도감소량);
+
+  // 현재 유효 능력치 (강화 반영)
+  function 현재공격력() {
+    return 설정.기본공격력 + 설정.공격력증가량 * 상태.공격력레벨;
+  }
+  function 현재공격주기() {
+    return Math.max(설정.공격주기하한, 설정.기본공격주기 - 설정.공격속도감소량 * 상태.공격속도레벨);
+  }
+
+  // 다음 강화 비용 (정수, 레벨이 오를수록 점증)
+  function 공격력비용() {
+    return Math.floor(설정.공격력기본비용 * Math.pow(설정.공격력비용배율, 상태.공격력레벨));
+  }
+  function 공격속도비용() {
+    return Math.floor(설정.공격속도기본비용 * Math.pow(설정.공격속도비용배율, 상태.공격속도레벨));
   }
 
   // 새 적 등장 (현재 층 기준)
@@ -279,7 +406,7 @@
 
   // 영웅의 한 번 공격
   function 공격() {
-    적현재체력 -= 설정.영웅공격력;
+    적현재체력 -= 현재공격력();
 
     // 피격 흔들림 효과
     요소.적그림.classList.remove("피격");
@@ -299,11 +426,39 @@
     저장();
   }
 
+  // 공격력 강화 구매
+  function 공격력강화() {
+    const 비용 = 공격력비용();
+    if (상태.골드 < 비용) return;        // 골드 부족 — 음수 방지
+    상태.골드 -= 비용;
+    상태.공격력레벨 += 1;
+    저장();
+    화면갱신();
+  }
+
+  // 공격속도 강화 구매
+  function 공격속도강화() {
+    if (상태.공격속도레벨 >= 공격속도최대레벨) return; // 하한 도달 — 더 못 올림
+    const 비용 = 공격속도비용();
+    if (상태.골드 < 비용) return;        // 골드 부족 — 음수 방지
+    상태.골드 -= 비용;
+    상태.공격속도레벨 += 1;
+    저장();
+    화면갱신();
+  }
+
+  // 강화 버튼 활성/비활성 토글
+  function 버튼적용(버튼, 가능) {
+    버튼.disabled = !가능;
+    버튼.classList.toggle("불가", !가능);
+  }
+
   // 게임 루프 1회 (틱간격마다 호출)
   function 틱() {
     누적시간 += 설정.틱간격 / 1000;
-    while (누적시간 >= 설정.영웅공격주기) {
-      누적시간 -= 설정.영웅공격주기;
+    const 주기 = 현재공격주기();
+    while (누적시간 >= 주기) {
+      누적시간 -= 주기;
       공격();
     }
     화면갱신();
@@ -317,28 +472,66 @@
     const 비율 = 적최대체력 > 0 ? (남은체력 / 적최대체력) * 100 : 0;
     요소.체력바.style.width = 비율 + "%";
     요소.체력수치.textContent = Math.ceil(남은체력) + " / " + 적최대체력;
+
+    // 영웅 현재 능력치 (강화 반영)
+    요소.영웅정보.textContent = 현재공격력() + " / " + 현재공격주기().toFixed(2) + "초";
+
+    // 공격력 강화 패널
+    const 공력비 = 공격력비용();
+    요소.공격력레벨.textContent = "Lv." + 상태.공격력레벨;
+    요소.공격력효과.textContent = "공격력 " + 현재공격력();
+    요소.공격력비용.textContent = 공력비;
+    버튼적용(요소.공격력버튼, 상태.골드 >= 공력비);
+
+    // 공격속도 강화 패널
+    요소.공격속도레벨.textContent = "Lv." + 상태.공격속도레벨;
+    요소.공격속도효과.textContent = "주기 " + 현재공격주기().toFixed(2) + "초";
+    if (상태.공격속도레벨 >= 공격속도최대레벨) {
+      요소.공격속도비용.textContent = "MAX";   // 하한 도달
+      버튼적용(요소.공격속도버튼, false);
+    } else {
+      const 속도비 = 공격속도비용();
+      요소.공격속도비용.textContent = 속도비;
+      버튼적용(요소.공격속도버튼, 상태.골드 >= 속도비);
+    }
   }
 
-  // localStorage 저장 (골드·현재층만)
+  // localStorage 저장 (골드·현재층·강화 레벨)
   function 저장() {
     try {
       localStorage.setItem(저장키, JSON.stringify({
         골드: 상태.골드,
-        현재층: 상태.현재층
+        현재층: 상태.현재층,
+        공격력레벨: 상태.공격력레벨,
+        공격속도레벨: 상태.공격속도레벨
       }));
     } catch (오류) {
       /* 저장 실패는 무시 (시크릿 모드 등) */
     }
   }
 
-  // localStorage 복원
+  // localStorage 복원 (v2 우선, 없으면 v1 세이브 이어받기)
   function 복원() {
     try {
-      const 원본 = localStorage.getItem(저장키);
-      if (!원본) return;
-      const 데이터 = JSON.parse(원본);
-      if (typeof 데이터.골드 === "number") 상태.골드 = 데이터.골드;
-      if (typeof 데이터.현재층 === "number" && 데이터.현재층 >= 1) 상태.현재층 = 데이터.현재층;
+      const v2원본 = localStorage.getItem(저장키);
+      if (v2원본) {
+        const 데이터 = JSON.parse(v2원본);
+        if (typeof 데이터.골드 === "number") 상태.골드 = 데이터.골드;
+        if (typeof 데이터.현재층 === "number" && 데이터.현재층 >= 1) 상태.현재층 = 데이터.현재층;
+        if (typeof 데이터.공격력레벨 === "number" && 데이터.공격력레벨 >= 0) 상태.공격력레벨 = 데이터.공격력레벨;
+        if (typeof 데이터.공격속도레벨 === "number" && 데이터.공격속도레벨 >= 0) {
+          상태.공격속도레벨 = Math.min(데이터.공격속도레벨, 공격속도최대레벨);
+        }
+        return;
+      }
+      // v2가 없으면 M1(v1) 세이브를 읽어 이어받기 (골드·층 보존, 강화는 0)
+      const v1원본 = localStorage.getItem(이전저장키);
+      if (v1원본) {
+        const 데이터 = JSON.parse(v1원본);
+        if (typeof 데이터.골드 === "number") 상태.골드 = 데이터.골드;
+        if (typeof 데이터.현재층 === "number" && 데이터.현재층 >= 1) 상태.현재층 = 데이터.현재층;
+        저장(); // v2 형식으로 옮겨 저장
+      }
     } catch (오류) {
       /* 손상된 저장은 무시하고 새 게임으로 시작 */
     }
@@ -347,7 +540,8 @@
   // ----- 시작 -----
   function 시작() {
     복원();
-    요소.영웅정보.textContent = 설정.영웅공격력 + " / " + 설정.영웅공격주기.toFixed(1) + "초";
+    요소.공격력버튼.addEventListener("click", 공격력강화);
+    요소.공격속도버튼.addEventListener("click", 공격속도강화);
     적생성();
     화면갱신();
     setInterval(틱, 설정.틱간격);
