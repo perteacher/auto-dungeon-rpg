@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>자동 던전 RPG · BUILD M3-01</title>
+<title>자동 던전 RPG · BUILD M4-01</title>
 <style>
   /* ===== 전역 스타일 ===== */
   :root {
@@ -15,6 +15,8 @@
     --금색: #ffcf5c;
     --핏빛: #d2453f;
     --핏빛밝게: #ff6b63;
+    --정수색: #5bd6e0;
+    --배수색: #b69cff;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -41,6 +43,33 @@
     border-radius: 18px;
     padding: 26px 24px 28px;
     box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+    position: relative;
+  }
+
+  /* 보스 처치 시 "정수 +N" 토스트 */
+  .정수토스트 {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(91,214,224,.14);
+    border: 1px solid var(--정수색);
+    color: var(--정수색);
+    font-size: 13px;
+    font-weight: 800;
+    padding: 6px 12px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 5;
+  }
+  .정수토스트.보임 { animation: 토스트떠오름 1.6s ease forwards; }
+  @keyframes 토스트떠오름 {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(8px) scale(.9); }
+    15%  { opacity: 1; transform: translateX(-50%) translateY(0)   scale(1); }
+    70%  { opacity: 1; transform: translateX(-50%) translateY(0)   scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-12px) scale(1); }
   }
 
   /* ===== 머리말 ===== */
@@ -223,6 +252,8 @@
     font-family: ui-monospace, Consolas, monospace;
   }
   .정보칸.골드칸 .값 { color: var(--금색); }
+  .정보칸.정수칸 .값 { color: var(--정수색); }
+  .정보칸.배수칸 .값 { color: var(--배수색); }
 
   /* ===== 강화 패널 ===== */
   .강화판 {
@@ -290,6 +321,7 @@
     white-space: nowrap;
     font-family: ui-monospace, Consolas, monospace;
   }
+  .강화비용.정수비용 { color: var(--정수색); }
 
   .안내 {
     margin-top: 16px;
@@ -301,9 +333,11 @@
 </head>
 <body>
   <main class="게임판">
+    <div class="정수토스트" id="정수토스트"></div>
+
     <div class="머리말">
       <h1>⚔️ 자동 던전</h1>
-      <span class="빌드라벨">BUILD M3-01</span>
+      <span class="빌드라벨">BUILD M4-01</span>
     </div>
 
     <div class="층표시">
@@ -331,9 +365,17 @@
         <div class="라벨">💰 보유 골드</div>
         <div class="값" id="골드">0</div>
       </div>
+      <div class="정보칸 정수칸">
+        <div class="라벨">💠 보스 정수</div>
+        <div class="값" id="정수">0</div>
+      </div>
       <div class="정보칸">
-        <div class="라벨">🗡️ 공격력 / 주기</div>
-        <div class="값" id="영웅정보">10 / 1.0초</div>
+        <div class="라벨">🗡️ 데미지 / 주기</div>
+        <div class="값" id="영웅정보">10 / 1.00초</div>
+      </div>
+      <div class="정보칸 배수칸">
+        <div class="라벨">✖️ 데미지 배수</div>
+        <div class="값" id="배수표시">×1.00</div>
       </div>
     </div>
 
@@ -355,22 +397,32 @@
         </span>
         <span class="강화비용"><span id="공격속도비용">50</span> 💰</span>
       </button>
+
+      <button class="강화칸 정수강화" id="배수버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">💠 데미지 배수 <span class="강화레벨" id="배수레벨">Lv.0</span></span>
+          <span class="강화효과" id="배수효과">배수 ×1.00</span>
+        </span>
+        <span class="강화비용 정수비용"><span id="배수비용">1</span> 💠</span>
+      </button>
     </section>
 
-    <p class="안내">영웅이 자동 전투합니다. 골드로 강화하세요. 10층마다 보스 관문! 진행은 자동 저장됩니다.</p>
+    <p class="안내">10층마다 보스! 시간 내 처치 시 정수 💠 획득 → 정수로 데미지 배수를 키우세요. 진행은 자동 저장됩니다.</p>
   </main>
 
 <script>
 /* =========================================================
-   자동 던전 RPG — M3 (M2 + 층·보스 게이트)
+   자동 던전 RPG — M4 (M3 + 보스 정수 재화 & 배수 강화)
    - 영웅은 무조건 이긴다. 일반 몬스터는 반격하지 않는다.
-   - 골드로 공격력 / 공격속도 강화 (골드 소비처).
+   - 골드로 공격력 / 공격속도 강화 (덧셈 성장).
    - 매 10층마다 보스(큰 체력 + 제한시간). 시간 내 처치 → 큰 보상·진행,
      실패 → 직전 구간으로 복귀해 farming → 강화 후 자동 재도전.
+   - 보스 시간 내 처치 시에만 '정수' 드랍 → 정수로 데미지 배수(곱셈) 강화.
+     최종 데미지 = (기본 + 공격력 강화) × 배수.
    ========================================================= */
 
-  const 저장키 = "dungeon_save_v3";
-  const 이전저장키들 = ["dungeon_save_v2", "dungeon_save_v1"]; // 옛 세이브 — v3 없을 때 순서대로 이어받기
+  const 저장키 = "dungeon_save_v4";
+  const 이전저장키들 = ["dungeon_save_v3", "dungeon_save_v2", "dungeon_save_v1"]; // 옛 세이브 — v4 없을 때 순서대로 이어받기
 
   // ----- 밸런스 수치 (자유롭게 조정 가능) -----
   const 설정 = {
@@ -394,7 +446,10 @@
     보스주기: 10,        // 매 N층마다 보스 등장 (10, 20, 30…)
     보스체력배율: 8,     // 보스 체력 = 그 층 일반 체력 × N
     보스제한시간: 30,    // 초 — 이 안에 못 잡으면 실패
-    보스보상배율: 20     // 보스 처치 보상 = 그 층 일반 골드 × N (한 방)
+    보스보상배율: 20,    // 보스 처치 보상 = 그 층 일반 골드 × N (한 방)
+
+    // --- 보스 정수 & 배수 강화(M4) ---
+    배수증가율: 1.1      // 데미지 배수 = 배수증가율^배수강화레벨 (곱으로 누적)
   };
 
   // ----- 적 도감 (표시용 이름·그림, 층에 따라 순환) -----
@@ -418,13 +473,15 @@
     { 이름: "드래곤",   그림: "🐲" }
   ];
 
-  // ----- 게임 상태 (저장 대상: 골드·현재층·강화 레벨) -----
+  // ----- 게임 상태 (저장 대상: 골드·현재층·강화 레벨·최고층·정수·배수) -----
   const 상태 = {
     골드: 0,
     현재층: 1,
     공격력레벨: 0,   // 공격력 강화 횟수
     공격속도레벨: 0, // 공격속도 강화 횟수
-    최고층: 1        // 지금까지 도달한 최고 층 (기록)
+    최고층: 1,       // 지금까지 도달한 최고 층 (기록)
+    정수: 0,         // 보스 정수 보유량 (보스 시간 내 처치 시에만 드랍)
+    배수강화레벨: 0  // 데미지 배수 강화 횟수
   };
 
   // ----- 현재 적 상태 (저장하지 않음 — 층에서 다시 계산) -----
@@ -456,7 +513,14 @@
     최고층: document.getElementById("최고층"),
     보스띠: document.getElementById("보스띠"),
     시간바: document.getElementById("시간바"),
-    시간수치: document.getElementById("시간수치")
+    시간수치: document.getElementById("시간수치"),
+    정수: document.getElementById("정수"),
+    배수표시: document.getElementById("배수표시"),
+    배수버튼: document.getElementById("배수버튼"),
+    배수레벨: document.getElementById("배수레벨"),
+    배수효과: document.getElementById("배수효과"),
+    배수비용: document.getElementById("배수비용"),
+    정수토스트: document.getElementById("정수토스트")
   };
 
   // 층 번호로 적 최대 체력 계산
@@ -473,6 +537,19 @@
   }
   function 현재공격주기() {
     return Math.max(설정.공격주기하한, 설정.기본공격주기 - 설정.공격속도감소량 * 상태.공격속도레벨);
+  }
+
+  // 데미지 배수 (정수로 강화 — 곱셈 성장)
+  function 현재배수() {
+    return Math.pow(설정.배수증가율, 상태.배수강화레벨);
+  }
+  // 최종 데미지 = (기본 + 공격력 강화) × 배수
+  function 최종데미지() {
+    return 현재공격력() * 현재배수();
+  }
+  // 배수 강화 비용 (정수): 1, 2, 3 … 으로 점증
+  function 배수비용() {
+    return 상태.배수강화레벨 + 1;
   }
 
   // 다음 강화 비용 (정수, 레벨이 오를수록 점증)
@@ -498,6 +575,11 @@
     return 일반골드(층) * 설정.보스보상배율;
   }
 
+  // 보스 정수 드랍 (시간 내 처치 시: 층 ÷ 보스주기 = 10층 1, 20층 2 …)
+  function 정수보상(층) {
+    return Math.floor(층 / 설정.보스주기);
+  }
+
   // 새 적 등장 (현재 층 기준 — 보스 층이면 보스)
   function 적생성() {
     const 기본체력 = 층별적체력(상태.현재층);
@@ -520,7 +602,7 @@
 
   // 영웅의 한 번 공격
   function 공격() {
-    적현재체력 -= 현재공격력();
+    적현재체력 -= 최종데미지();
 
     // 피격 흔들림 효과
     요소.적그림.classList.remove("피격");
@@ -534,7 +616,14 @@
 
   // 적 처치 처리 → 보상 + 다음 층
   function 적처치() {
-    상태.골드 += 보스전투중 ? 보스보상(상태.현재층) : 일반골드(상태.현재층);
+    if (보스전투중) {
+      상태.골드 += 보스보상(상태.현재층);
+      const 정수획득 = 정수보상(상태.현재층); // 시간 내 처치라서 드랍 (시간 초과는 적처치 안 탐)
+      상태.정수 += 정수획득;
+      정수토스트(정수획득);
+    } else {
+      상태.골드 += 일반골드(상태.현재층);
+    }
     상태.현재층 += 1;
     if (상태.현재층 > 상태.최고층) 상태.최고층 = 상태.현재층;
     적생성();
@@ -571,6 +660,25 @@
     화면갱신();
   }
 
+  // 데미지 배수 강화 구매 (정수 소비)
+  function 배수강화() {
+    const 비용 = 배수비용();
+    if (상태.정수 < 비용) return;        // 정수 부족 — 음수 방지
+    상태.정수 -= 비용;
+    상태.배수강화레벨 += 1;
+    저장();
+    화면갱신();
+  }
+
+  // "정수 +N" 토스트 (보스 처치 시)
+  function 정수토스트(개수) {
+    if (개수 <= 0) return;
+    요소.정수토스트.textContent = "정수 +" + 개수 + " 💠";
+    요소.정수토스트.classList.remove("보임");
+    void 요소.정수토스트.offsetWidth; // 애니메이션 재시작 강제
+    요소.정수토스트.classList.add("보임");
+  }
+
   // 강화 버튼 활성/비활성 토글
   function 버튼적용(버튼, 가능) {
     버튼.disabled = !가능;
@@ -605,6 +713,8 @@
     요소.현재층.textContent = 상태.현재층;
     요소.최고층.textContent = 상태.최고층;
     요소.골드.textContent = 상태.골드;
+    요소.정수.textContent = 상태.정수;
+    요소.배수표시.textContent = "×" + 현재배수().toFixed(2);
 
     const 남은체력 = Math.max(0, 적현재체력);
     const 비율 = 적최대체력 > 0 ? (남은체력 / 적최대체력) * 100 : 0;
@@ -623,8 +733,8 @@
       요소.딱지.textContent = "DUNGEON FLOOR";
     }
 
-    // 영웅 현재 능력치 (강화 반영)
-    요소.영웅정보.textContent = 현재공격력() + " / " + 현재공격주기().toFixed(2) + "초";
+    // 영웅 현재 능력치 (최종 데미지 = (기본+강화)×배수)
+    요소.영웅정보.textContent = Math.round(최종데미지()) + " / " + 현재공격주기().toFixed(2) + "초";
 
     // 공격력 강화 패널
     const 공력비 = 공격력비용();
@@ -644,9 +754,16 @@
       요소.공격속도비용.textContent = 속도비;
       버튼적용(요소.공격속도버튼, 상태.골드 >= 속도비);
     }
+
+    // 데미지 배수 강화 패널 (정수로 구매)
+    const 배수비 = 배수비용();
+    요소.배수레벨.textContent = "Lv." + 상태.배수강화레벨;
+    요소.배수효과.textContent = "배수 ×" + 현재배수().toFixed(2);
+    요소.배수비용.textContent = 배수비;
+    버튼적용(요소.배수버튼, 상태.정수 >= 배수비);
   }
 
-  // localStorage 저장 (골드·현재층·강화 레벨·최고층)
+  // localStorage 저장 (골드·현재층·강화 레벨·최고층·정수·배수)
   function 저장() {
     try {
       localStorage.setItem(저장키, JSON.stringify({
@@ -654,14 +771,16 @@
         현재층: 상태.현재층,
         공격력레벨: 상태.공격력레벨,
         공격속도레벨: 상태.공격속도레벨,
-        최고층: 상태.최고층
+        최고층: 상태.최고층,
+        정수: 상태.정수,
+        배수강화레벨: 상태.배수강화레벨
       }));
     } catch (오류) {
       /* 저장 실패는 무시 (시크릿 모드 등) */
     }
   }
 
-  // 세이브 데이터 → 상태 반영 (v2·v3 공통; 최고층은 v3에만 존재)
+  // 세이브 데이터 → 상태 반영 (v2~v4 공통; 없는 필드는 기본값 유지)
   function 세이브적용(데이터) {
     if (typeof 데이터.골드 === "number") 상태.골드 = 데이터.골드;
     if (typeof 데이터.현재층 === "number" && 데이터.현재층 >= 1) 상태.현재층 = 데이터.현재층;
@@ -669,23 +788,25 @@
     if (typeof 데이터.공격속도레벨 === "number" && 데이터.공격속도레벨 >= 0) {
       상태.공격속도레벨 = Math.min(데이터.공격속도레벨, 공격속도최대레벨);
     }
-    if (typeof 데이터.최고층 === "number" && 데이터.최고층 >= 1) 상태.최고층 = 데이터.최고층;
+    if (typeof 데이터.최고층 === "number" && 데이터.최고층 >= 1) 상태.최고층 = 데이터.최고층; // v3+
+    if (typeof 데이터.정수 === "number" && 데이터.정수 >= 0) 상태.정수 = 데이터.정수;             // v4+
+    if (typeof 데이터.배수강화레벨 === "number" && 데이터.배수강화레벨 >= 0) 상태.배수강화레벨 = 데이터.배수강화레벨; // v4+
     if (상태.현재층 > 상태.최고층) 상태.최고층 = 상태.현재층; // 최고층은 항상 현재층 이상
   }
 
-  // localStorage 복원 (v3 우선, 없으면 v2 → v1 순으로 이어받기)
+  // localStorage 복원 (v4 우선, 없으면 v3 → v2 → v1 순으로 이어받기)
   function 복원() {
     try {
-      const v3원본 = localStorage.getItem(저장키);
-      if (v3원본) {
-        세이브적용(JSON.parse(v3원본));
+      const 현재원본 = localStorage.getItem(저장키);
+      if (현재원본) {
+        세이브적용(JSON.parse(현재원본));
         return;
       }
       for (const 옛키 of 이전저장키들) {
         const 옛원본 = localStorage.getItem(옛키);
         if (옛원본) {
-          세이브적용(JSON.parse(옛원본)); // 골드·층·강화 보존 (최고층 없으면 현재층으로)
-          저장(); // v3 형식으로 옮겨 저장
+          세이브적용(JSON.parse(옛원본)); // 골드·층·강화·최고층 보존 (정수·배수는 0부터)
+          저장(); // v4 형식으로 옮겨 저장
           return;
         }
       }
@@ -699,6 +820,7 @@
     복원();
     요소.공격력버튼.addEventListener("click", 공격력강화);
     요소.공격속도버튼.addEventListener("click", 공격속도강화);
+    요소.배수버튼.addEventListener("click", 배수강화);
     적생성();
     화면갱신();
     setInterval(틱, 설정.틱간격);
