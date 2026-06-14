@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>자동 던전 RPG · BUILD M4-01</title>
+<title>자동 던전 RPG · BUILD M5-01</title>
 <style>
   /* ===== 전역 스타일 ===== */
   :root {
@@ -17,6 +17,8 @@
     --핏빛밝게: #ff6b63;
     --정수색: #5bd6e0;
     --배수색: #b69cff;
+    --경험치색: #7fd957;
+    --보석색: #74e1b6;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -65,6 +67,27 @@
     z-index: 5;
   }
   .정수토스트.보임 { animation: 토스트떠오름 1.6s ease forwards; }
+
+  /* 강타 발동 토스트 (조금 아래에) */
+  .강타토스트 {
+    position: absolute;
+    top: 46px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,157,60,.16);
+    border: 1px solid #ff9d3c;
+    color: #ffb968;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 5px 11px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 5;
+  }
+  .강타토스트.보임 { animation: 토스트떠오름 1.2s ease forwards; }
+
   @keyframes 토스트떠오름 {
     0%   { opacity: 0; transform: translateX(-50%) translateY(8px) scale(.9); }
     15%  { opacity: 1; transform: translateX(-50%) translateY(0)   scale(1); }
@@ -96,7 +119,7 @@
   /* ===== 층 표시 ===== */
   .층표시 {
     text-align: center;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
   }
   .층표시 .딱지 {
     font-size: 12px;
@@ -119,6 +142,49 @@
     font-family: ui-monospace, Consolas, monospace;
   }
 
+  /* ===== 영웅 레벨 + 경험치 바 ===== */
+  .레벨줄 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .레벨딱지 {
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--경험치색);
+    font-family: ui-monospace, Consolas, monospace;
+    white-space: nowrap;
+  }
+  .경험치틀 {
+    position: relative;
+    flex: 1 1 auto;
+    height: 16px;
+    background: #0c0e15;
+    border: 1px solid var(--테두리);
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .경험치바 {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4f9e2e, var(--경험치색));
+    transition: width .18s linear;
+  }
+  .경험치수치 {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,.7);
+    font-family: ui-monospace, Consolas, monospace;
+  }
+
   /* ===== 적 무대 ===== */
   .적무대 {
     background: radial-gradient(80% 90% at 50% 30%, #20243a 0%, #12141d 80%);
@@ -138,11 +204,20 @@
   .적그림.피격 {
     animation: 흔들림 .22s ease;
   }
+  .적그림.강타침 {
+    animation: 강타흔들림 .3s ease;
+  }
   @keyframes 흔들림 {
     0%   { transform: translateX(0) scale(1); }
     25%  { transform: translateX(-7px) scale(1.04); }
     55%  { transform: translateX(6px) scale(.98); }
     100% { transform: translateX(0) scale(1); }
+  }
+  @keyframes 강타흔들림 {
+    0%   { transform: scale(1);    filter: drop-shadow(0 8px 14px rgba(0,0,0,.5)); }
+    30%  { transform: scale(1.18) rotate(-4deg); filter: drop-shadow(0 0 18px rgba(255,157,60,.85)); }
+    60%  { transform: scale(.95) rotate(3deg); }
+    100% { transform: scale(1);    filter: drop-shadow(0 8px 14px rgba(0,0,0,.5)); }
   }
   .적이름 {
     margin-top: 10px;
@@ -241,6 +316,7 @@
     border-radius: 10px;
     padding: 12px 14px;
   }
+  .정보칸.넓게 { grid-column: 1 / -1; }
   .정보칸 .라벨 {
     font-size: 11px;
     color: var(--흐린글자);
@@ -254,8 +330,9 @@
   .정보칸.골드칸 .값 { color: var(--금색); }
   .정보칸.정수칸 .값 { color: var(--정수색); }
   .정보칸.배수칸 .값 { color: var(--배수색); }
+  .정보칸.보석칸 .값 { color: var(--보석색); }
 
-  /* ===== 강화 패널 ===== */
+  /* ===== 강화 / 스킬 / 상점 패널 (공통) ===== */
   .강화판 {
     margin-top: 14px;
     display: flex;
@@ -263,11 +340,21 @@
     gap: 8px;
   }
   .강화제목 {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
     font-size: 11px;
     letter-spacing: 3px;
     color: var(--흐린글자);
-    margin: 4px 2px 2px;
+    margin: 6px 2px 2px;
   }
+  .강화제목 .보유 {
+    letter-spacing: 0;
+    font-weight: 700;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  .강화제목 .보유.포인트 { color: var(--경험치색); }
+  .강화제목 .보유.보석 { color: var(--보석색); }
   .강화칸 {
     width: 100%;
     display: flex;
@@ -322,6 +409,8 @@
     font-family: ui-monospace, Consolas, monospace;
   }
   .강화비용.정수비용 { color: var(--정수색); }
+  .강화비용.포인트비용 { color: var(--경험치색); }
+  .강화비용.보석비용 { color: var(--보석색); }
 
   .안내 {
     margin-top: 16px;
@@ -329,21 +418,121 @@
     font-size: 11px;
     color: var(--흐린글자);
   }
+
+  /* ===== 초기화 버튼 ===== */
+  .설정줄 {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+  }
+  .초기화버튼 {
+    background: transparent;
+    border: 1px solid var(--테두리);
+    color: var(--흐린글자);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color .12s ease, color .12s ease;
+  }
+  .초기화버튼:hover {
+    border-color: var(--핏빛);
+    color: var(--핏빛밝게);
+  }
+
+  /* ===== 모달 (오프라인 보상 / 초기화 확인) ===== */
+  .막 {
+    position: fixed;
+    inset: 0;
+    background: rgba(5,6,10,.66);
+    backdrop-filter: blur(2px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 50;
+  }
+  .막.보임 { display: flex; }
+  .막상자 {
+    background: linear-gradient(180deg, var(--판넬), #14161f);
+    border: 1px solid var(--테두리);
+    border-radius: 16px;
+    padding: 24px 22px 22px;
+    max-width: 340px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,.6);
+  }
+  .막제목 {
+    font-size: 17px;
+    font-weight: 800;
+    margin-bottom: 12px;
+  }
+  .막내용 {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--흐린글자);
+    margin-bottom: 20px;
+  }
+  .막내용 b { color: var(--금색); font-weight: 800; }
+  .막버튼줄 {
+    display: flex;
+    gap: 10px;
+  }
+  .막버튼 {
+    flex: 1 1 0;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 11px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 1px solid var(--테두리);
+    transition: transform .06s ease, filter .12s ease;
+  }
+  .막버튼:active { transform: scale(.98); }
+  .막버튼.주버튼 {
+    width: 100%;
+    background: linear-gradient(180deg, #ffd873, #f0b53c);
+    border-color: #f0b53c;
+    color: #2a1f06;
+  }
+  .막버튼.보조버튼 {
+    background: #14161f;
+    color: var(--글자);
+  }
+  .막버튼.위험버튼 {
+    background: linear-gradient(180deg, #e0524c, #c2332d);
+    border-color: #c2332d;
+    color: #fff;
+  }
+  .막버튼:hover { filter: brightness(1.06); }
 </style>
 </head>
 <body>
   <main class="게임판">
     <div class="정수토스트" id="정수토스트"></div>
+    <div class="강타토스트" id="강타토스트"></div>
 
     <div class="머리말">
       <h1>⚔️ 자동 던전</h1>
-      <span class="빌드라벨">BUILD M4-01</span>
+      <span class="빌드라벨">BUILD M5-01</span>
     </div>
 
     <div class="층표시">
       <div class="딱지" id="딱지">DUNGEON FLOOR</div>
       <div class="숫자" id="현재층">1</div>
       <div class="최고기록">최고 <span id="최고층">1</span>층</div>
+    </div>
+
+    <div class="레벨줄">
+      <div class="레벨딱지">⭐ Lv.<span id="레벨">1</span></div>
+      <div class="경험치틀">
+        <div class="경험치바" id="경험치바"></div>
+        <div class="경험치수치" id="경험치수치">0 / 10 XP</div>
+      </div>
     </div>
 
     <section class="적무대" id="적무대">
@@ -365,22 +554,26 @@
         <div class="라벨">💰 보유 골드</div>
         <div class="값" id="골드">0</div>
       </div>
+      <div class="정보칸 보석칸">
+        <div class="라벨">💎 보석</div>
+        <div class="값" id="보석">0</div>
+      </div>
       <div class="정보칸 정수칸">
         <div class="라벨">💠 보스 정수</div>
         <div class="값" id="정수">0</div>
-      </div>
-      <div class="정보칸">
-        <div class="라벨">🗡️ 데미지 / 주기</div>
-        <div class="값" id="영웅정보">10 / 1.00초</div>
       </div>
       <div class="정보칸 배수칸">
         <div class="라벨">✖️ 데미지 배수</div>
         <div class="값" id="배수표시">×1.00</div>
       </div>
+      <div class="정보칸 넓게">
+        <div class="라벨">🗡️ 데미지 / 주기</div>
+        <div class="값" id="영웅정보">10 / 1.00초</div>
+      </div>
     </div>
 
     <section class="강화판">
-      <div class="강화제목">강화</div>
+      <div class="강화제목"><span>강화 (골드 · 정수)</span></div>
 
       <button class="강화칸" id="공격력버튼" type="button">
         <span class="강화머리">
@@ -407,22 +600,109 @@
       </button>
     </section>
 
-    <p class="안내">10층마다 보스! 시간 내 처치 시 정수 💠 획득 → 정수로 데미지 배수를 키우세요. 진행은 자동 저장됩니다.</p>
+    <section class="강화판">
+      <div class="강화제목">
+        <span>스킬 (스킬 포인트)</span>
+        <span class="보유 포인트">SP <span id="스킬포인트">0</span></span>
+      </div>
+
+      <button class="강화칸" id="황금손버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">🪙 황금 손 <span class="강화레벨" id="황금손레벨">Lv.0</span></span>
+          <span class="강화효과" id="황금손효과">골드 획득 +0%</span>
+        </span>
+        <span class="강화비용 포인트비용">1 SP</span>
+      </button>
+
+      <button class="강화칸" id="정수친화버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">💠 정수 친화 <span class="강화레벨" id="정수친화레벨">Lv.0</span></span>
+          <span class="강화효과" id="정수친화효과">보스 정수 +0</span>
+        </span>
+        <span class="강화비용 포인트비용">1 SP</span>
+      </button>
+
+      <button class="강화칸" id="강타버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">💥 강타 <span class="강화레벨" id="강타레벨">Lv.0</span></span>
+          <span class="강화효과" id="강타효과">강화 시 10초마다 자동 발동</span>
+        </span>
+        <span class="강화비용 포인트비용">1 SP</span>
+      </button>
+    </section>
+
+    <section class="강화판">
+      <div class="강화제목">
+        <span>영구 상점 (보석 · 초기화해도 유지)</span>
+        <span class="보유 보석">💎 <span id="상점보석">0</span></span>
+      </div>
+
+      <button class="강화칸" id="골드부스트버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">💰 골드 강화 <span class="강화레벨" id="골드부스트레벨">Lv.0</span></span>
+          <span class="강화효과" id="골드부스트효과">모든 골드 +0%</span>
+        </span>
+        <span class="강화비용 보석비용"><span id="골드부스트비용">5</span> 💎</span>
+      </button>
+
+      <button class="강화칸" id="데미지부스트버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">🗡️ 데미지 강화 <span class="강화레벨" id="데미지부스트레벨">Lv.0</span></span>
+          <span class="강화효과" id="데미지부스트효과">모든 데미지 +0%</span>
+        </span>
+        <span class="강화비용 보석비용"><span id="데미지부스트비용">5</span> 💎</span>
+      </button>
+
+      <button class="강화칸" id="오프라인상한버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">🌙 오프라인 상한 <span class="강화레벨" id="오프라인상한레벨">Lv.0</span></span>
+          <span class="강화효과" id="오프라인상한효과">오프라인 보상 최대 8시간</span>
+        </span>
+        <span class="강화비용 보석비용"><span id="오프라인상한비용">5</span> 💎</span>
+      </button>
+    </section>
+
+    <p class="안내">적을 잡아 경험치·골드·보석을 모으고, 레벨업으로 스킬을 키우세요. 10층마다 보스! 진행은 자동 저장됩니다.</p>
+
+    <div class="설정줄">
+      <button class="초기화버튼" id="초기화버튼" type="button">↺ 처음부터 다시 시작</button>
+    </div>
   </main>
+
+  <!-- 오프라인 보상 모달 -->
+  <div class="막" id="오프라인막">
+    <div class="막상자">
+      <div class="막제목">🌙 다시 오셨네요</div>
+      <p class="막내용" id="오프라인내용">자리를 비운 동안 골드를 모았어요.</p>
+      <button class="막버튼 주버튼" id="오프라인받기" type="button">받기</button>
+    </div>
+  </div>
+
+  <!-- 초기화 확인 모달 -->
+  <div class="막" id="초기화막">
+    <div class="막상자">
+      <div class="막제목">⚠️ 처음부터 다시?</div>
+      <p class="막내용">정말 처음부터 다시 시작할까요? 골드·층·강화·정수·경험치·스킬이 모두 사라집니다. <b>(보석과 영구 상점은 유지됩니다.)</b></p>
+      <div class="막버튼줄">
+        <button class="막버튼 보조버튼" id="초기화취소" type="button">취소</button>
+        <button class="막버튼 위험버튼" id="초기화확인" type="button">초기화</button>
+      </div>
+    </div>
+  </div>
 
 <script>
 /* =========================================================
-   자동 던전 RPG — M4 (M3 + 보스 정수 재화 & 배수 강화)
+   자동 던전 RPG — M5 (M4 + 오프라인보상·초기화·경험치레벨·스킬·보석상점)
    - 영웅은 무조건 이긴다. 일반 몬스터는 반격하지 않는다.
-   - 골드로 공격력 / 공격속도 강화 (덧셈 성장).
-   - 매 10층마다 보스(큰 체력 + 제한시간). 시간 내 처치 → 큰 보상·진행,
-     실패 → 직전 구간으로 복귀해 farming → 강화 후 자동 재도전.
-   - 보스 시간 내 처치 시에만 '정수' 드랍 → 정수로 데미지 배수(곱셈) 강화.
-     최종 데미지 = (기본 + 공격력 강화) × 배수.
+   - 골드로 공격력 / 공격속도 강화 (덧셈), 정수로 데미지 배수 강화 (곱셈).
+   - 매 10층마다 보스(큰 체력 + 제한시간). 시간 내 처치 → 정수·보석·골드 보상.
+   - 적 처치 시 경험치 → 자동 레벨업 → 스킬 포인트 → 스킬 3종(황금손/정수친화/강타).
+   - 보석(💎)으로 영구 상점 구매. 영구 상점·보석은 초기화해도 유지.
+   - 오프라인 보상: 자리 비운 시간만큼 골드 추정 지급(최대 8시간 + 상점 보너스).
    ========================================================= */
 
-  const 저장키 = "dungeon_save_v4";
-  const 이전저장키들 = ["dungeon_save_v3", "dungeon_save_v2", "dungeon_save_v1"]; // 옛 세이브 — v4 없을 때 순서대로 이어받기
+  const 저장키 = "dungeon_save_v5";
+  const 이전저장키들 = ["dungeon_save_v4", "dungeon_save_v3", "dungeon_save_v2", "dungeon_save_v1"]; // v5 없을 때 순서대로 이어받기
 
   // ----- 밸런스 수치 (자유롭게 조정 가능) -----
   const 설정 = {
@@ -449,7 +729,26 @@
     보스보상배율: 20,    // 보스 처치 보상 = 그 층 일반 골드 × N (한 방)
 
     // --- 보스 정수 & 배수 강화(M4) ---
-    배수증가율: 1.1      // 데미지 배수 = 배수증가율^배수강화레벨 (곱으로 누적)
+    배수증가율: 1.1,     // 데미지 배수 = 배수증가율^배수강화레벨 (곱으로 누적)
+
+    // --- 경험치/레벨(M5) ---
+    일반경험치: 1,        // 일반 처치 시 XP
+    보스경험치: 10,       // 보스 처치 시 XP
+    레벨경험계수: 10,     // 필요 XP = 레벨 × 계수
+    레벨당공격보너스: 1,  // 레벨업마다 기본 공격력 +N
+
+    // --- 스킬(M5) ---
+    황금손증가: 0.05,     // 황금손 레벨당 골드 +5%
+    정수친화증가: 1,      // 정수친화 레벨당 보스 정수 +1
+    강타기본배수: 2,      // 강타 = 평타 × (기본배수 + 강타레벨)
+    강타주기: 10,         // 초 — 강타 자동 발동 간격
+
+    // --- 보석/영구상점(M5) ---
+    보석드랍확률: 0.01,   // 일반 처치 시 보석 1개 드랍 확률 (1%)
+    상점기본비용: 5,      // 영구 상점 항목 첫 비용(보석) — 레벨당 +기본비용 점증
+    골드부스트증가: 0.10, // 골드 강화 레벨당 모든 골드 +10%
+    데미지부스트증가: 0.05, // 데미지 강화 레벨당 모든 데미지 +5%
+    오프라인상한초: 28800 // 오프라인 보상 기본 상한(초) = 8시간
   };
 
   // ----- 적 도감 (표시용 이름·그림, 층에 따라 순환) -----
@@ -473,21 +772,37 @@
     { 이름: "드래곤",   그림: "🐲" }
   ];
 
-  // ----- 게임 상태 (저장 대상: 골드·현재층·강화 레벨·최고층·정수·배수) -----
+  // ----- 게임 상태 -----
+  //  진행 데이터(초기화로 사라짐): 골드·현재층·강화·최고층·정수·배수·경험치·레벨·스킬포인트·스킬
+  //  영구 데이터(초기화로 유지):   보석·영구상점
   const 상태 = {
     골드: 0,
     현재층: 1,
     공격력레벨: 0,   // 공격력 강화 횟수
     공격속도레벨: 0, // 공격속도 강화 횟수
     최고층: 1,       // 지금까지 도달한 최고 층 (기록)
-    정수: 0,         // 보스 정수 보유량 (보스 시간 내 처치 시에만 드랍)
-    배수강화레벨: 0  // 데미지 배수 강화 횟수
+    정수: 0,         // 보스 정수 보유량
+    배수강화레벨: 0, // 데미지 배수 강화 횟수
+
+    // M5 — 경험치/레벨/스킬
+    경험치: 0,
+    레벨: 1,
+    스킬포인트: 0,
+    스킬: { 황금손: 0, 정수친화: 0, 강타: 0 },
+
+    // M5 — 영구(초기화 유지)
+    보석: 0,
+    영구상점: { 골드부스트: 0, 데미지부스트: 0, 오프라인상한: 0 },
+
+    // M5 — 오프라인
+    마지막접속: 0   // 마지막 저장 시각(ms). 0이면 오프라인 보상 없음
   };
 
   // ----- 현재 적 상태 (저장하지 않음 — 층에서 다시 계산) -----
   let 적최대체력 = 0;
   let 적현재체력 = 0;
   let 누적시간 = 0;       // 공격주기 채우기용 (초)
+  let 강타누적 = 0;       // 강타 쿨다운 채우기용 (초)
   let 보스전투중 = false; // 현재 적이 보스인지
   let 보스남은시간 = 0;   // 보스 제한시간 남은 초
 
@@ -520,7 +835,52 @@
     배수레벨: document.getElementById("배수레벨"),
     배수효과: document.getElementById("배수효과"),
     배수비용: document.getElementById("배수비용"),
-    정수토스트: document.getElementById("정수토스트")
+    정수토스트: document.getElementById("정수토스트"),
+    강타토스트: document.getElementById("강타토스트"),
+
+    // M5 — 레벨/XP
+    레벨: document.getElementById("레벨"),
+    경험치바: document.getElementById("경험치바"),
+    경험치수치: document.getElementById("경험치수치"),
+
+    // M5 — 보석
+    보석: document.getElementById("보석"),
+    상점보석: document.getElementById("상점보석"),
+
+    // M5 — 스킬
+    스킬포인트: document.getElementById("스킬포인트"),
+    황금손버튼: document.getElementById("황금손버튼"),
+    황금손레벨: document.getElementById("황금손레벨"),
+    황금손효과: document.getElementById("황금손효과"),
+    정수친화버튼: document.getElementById("정수친화버튼"),
+    정수친화레벨: document.getElementById("정수친화레벨"),
+    정수친화효과: document.getElementById("정수친화효과"),
+    강타버튼: document.getElementById("강타버튼"),
+    강타레벨: document.getElementById("강타레벨"),
+    강타효과: document.getElementById("강타효과"),
+
+    // M5 — 영구상점
+    골드부스트버튼: document.getElementById("골드부스트버튼"),
+    골드부스트레벨: document.getElementById("골드부스트레벨"),
+    골드부스트효과: document.getElementById("골드부스트효과"),
+    골드부스트비용: document.getElementById("골드부스트비용"),
+    데미지부스트버튼: document.getElementById("데미지부스트버튼"),
+    데미지부스트레벨: document.getElementById("데미지부스트레벨"),
+    데미지부스트효과: document.getElementById("데미지부스트효과"),
+    데미지부스트비용: document.getElementById("데미지부스트비용"),
+    오프라인상한버튼: document.getElementById("오프라인상한버튼"),
+    오프라인상한레벨: document.getElementById("오프라인상한레벨"),
+    오프라인상한효과: document.getElementById("오프라인상한효과"),
+    오프라인상한비용: document.getElementById("오프라인상한비용"),
+
+    // M5 — 모달/초기화
+    초기화버튼: document.getElementById("초기화버튼"),
+    오프라인막: document.getElementById("오프라인막"),
+    오프라인내용: document.getElementById("오프라인내용"),
+    오프라인받기: document.getElementById("오프라인받기"),
+    초기화막: document.getElementById("초기화막"),
+    초기화취소: document.getElementById("초기화취소"),
+    초기화확인: document.getElementById("초기화확인")
   };
 
   // 층 번호로 적 최대 체력 계산
@@ -531,9 +891,11 @@
   // 공격속도 강화 최대 레벨 (공격주기가 하한에 닿는 레벨)
   const 공격속도최대레벨 = Math.round((설정.기본공격주기 - 설정.공격주기하한) / 설정.공격속도감소량);
 
-  // 현재 유효 능력치 (강화 반영)
+  // 현재 유효 능력치 (강화 + 레벨 보너스 반영)
   function 현재공격력() {
-    return 설정.기본공격력 + 설정.공격력증가량 * 상태.공격력레벨;
+    return 설정.기본공격력
+         + 설정.공격력증가량 * 상태.공격력레벨
+         + 설정.레벨당공격보너스 * (상태.레벨 - 1);
   }
   function 현재공격주기() {
     return Math.max(설정.공격주기하한, 설정.기본공격주기 - 설정.공격속도감소량 * 상태.공격속도레벨);
@@ -543,13 +905,27 @@
   function 현재배수() {
     return Math.pow(설정.배수증가율, 상태.배수강화레벨);
   }
-  // 최종 데미지 = (기본 + 공격력 강화) × 배수
+  // 영구 상점 데미지 부스트 배수 (+5%/레벨)
+  function 데미지부스트배수() {
+    return 1 + 설정.데미지부스트증가 * 상태.영구상점.데미지부스트;
+  }
+  // 최종 데미지 = (기본 + 공격력강화 + 레벨보너스) × 배수 × 데미지부스트
   function 최종데미지() {
-    return 현재공격력() * 현재배수();
+    return 현재공격력() * 현재배수() * 데미지부스트배수();
   }
   // 배수 강화 비용 (정수): 1, 2, 3 … 으로 점증
   function 배수비용() {
     return 상태.배수강화레벨 + 1;
+  }
+
+  // 골드 획득 배수 (황금손 스킬 + 골드부스트 영구상점)
+  function 골드배수() {
+    return (1 + 설정.황금손증가 * 상태.스킬.황금손)
+         * (1 + 설정.골드부스트증가 * 상태.영구상점.골드부스트);
+  }
+  // 기본 골드량에 배수 적용 (소수점 버림)
+  function 골드량적용(기본) {
+    return Math.floor(기본 * 골드배수());
   }
 
   // 다음 강화 비용 (정수, 레벨이 오를수록 점증)
@@ -575,9 +951,59 @@
     return 일반골드(층) * 설정.보스보상배율;
   }
 
-  // 보스 정수 드랍 (시간 내 처치 시: 층 ÷ 보스주기 = 10층 1, 20층 2 …)
+  // 보스 정수 드랍 (층 ÷ 보스주기 = 10층 1, 20층 2 …) + 정수친화 스킬 보너스
   function 정수보상(층) {
-    return Math.floor(층 / 설정.보스주기);
+    return Math.floor(층 / 설정.보스주기) + 설정.정수친화증가 * 상태.스킬.정수친화;
+  }
+
+  // ----- 경험치 / 레벨 -----
+  // 다음 레벨까지 필요한 XP
+  function 필요경험치() {
+    return 상태.레벨 * 설정.레벨경험계수;
+  }
+  // XP 획득 + 자동 레벨업(여러 레벨 한꺼번에 처리)
+  function 경험치획득(양) {
+    상태.경험치 += 양;
+    let 필요 = 필요경험치();
+    while (상태.경험치 >= 필요) {
+      상태.경험치 -= 필요;
+      상태.레벨 += 1;
+      상태.스킬포인트 += 1; // 레벨업 보상: 스킬 포인트 +1 (+ 기본공격력은 레벨보너스로 자동 반영)
+      필요 = 필요경험치();
+    }
+  }
+
+  // ----- 영구 상점 비용 (보석): 5, 10, 15 … 점증 -----
+  function 상점비용(항목) {
+    return 설정.상점기본비용 * (상태.영구상점[항목] + 1);
+  }
+
+  // 오프라인 보상 상한(초) = 기본 8시간 + 상점 레벨당 1시간
+  function 오프라인상한초() {
+    return 설정.오프라인상한초 + 3600 * 상태.영구상점.오프라인상한;
+  }
+
+  // 초당 골드 추정치 (현재 구간 일반 몬스터 farming 기준)
+  function 초당골드추정() {
+    const 층 = 보스층인가(상태.현재층) ? Math.max(1, 상태.현재층 - 1) : 상태.현재층;
+    const 체력 = 층별적체력(층);
+    const 데미지 = Math.max(1, 최종데미지());
+    const 타수 = Math.max(1, Math.ceil(체력 / 데미지));       // 한 마리 잡는 데 필요한 타격 수
+    const 처치시간 = 타수 * 현재공격주기();                   // 한 마리당 걸리는 초
+    const 킬골드 = 골드량적용(일반골드(층));                  // 한 마리당 골드(배수 반영)
+    return 킬골드 / 처치시간;
+  }
+
+  // 오프라인 보상 계산 → { 초, 골드 } 또는 0 (없음)
+  function 오프라인계산() {
+    if (!상태.마지막접속) return 0;
+    const 지금 = Date.now();
+    let 흐른초 = Math.floor((지금 - 상태.마지막접속) / 1000);
+    if (흐른초 <= 0) return 0;
+    흐른초 = Math.min(흐른초, 오프라인상한초());            // 상한 적용
+    const 골드 = Math.floor(흐른초 * 초당골드추정());
+    if (골드 <= 0) return 0;
+    return { 초: 흐른초, 골드: 골드 };
   }
 
   // 새 적 등장 (현재 층 기준 — 보스 층이면 보스)
@@ -600,7 +1026,7 @@
     적현재체력 = 적최대체력;
   }
 
-  // 영웅의 한 번 공격
+  // 영웅의 한 번 평타
   function 공격() {
     적현재체력 -= 최종데미지();
 
@@ -614,15 +1040,34 @@
     }
   }
 
-  // 적 처치 처리 → 보상 + 다음 층
+  // 강타 자동 발동 (평타 × (기본배수 + 강타레벨) 한 방)
+  function 강타발동() {
+    const 데미지 = 최종데미지() * (설정.강타기본배수 + 상태.스킬.강타);
+    적현재체력 -= 데미지;
+
+    요소.적그림.classList.remove("강타침");
+    void 요소.적그림.offsetWidth;
+    요소.적그림.classList.add("강타침");
+    강타토스트표시(Math.round(데미지));
+
+    if (적현재체력 <= 0) {
+      적처치();
+    }
+  }
+
+  // 적 처치 처리 → 보상(골드·정수·보석·XP) + 다음 층
   function 적처치() {
     if (보스전투중) {
-      상태.골드 += 보스보상(상태.현재층);
+      상태.골드 += 골드량적용(보스보상(상태.현재층));
       const 정수획득 = 정수보상(상태.현재층); // 시간 내 처치라서 드랍 (시간 초과는 적처치 안 탐)
       상태.정수 += 정수획득;
-      정수토스트(정수획득);
+      상태.보석 += 1;                          // 보스 처치 시 보석 +1 확정
+      경험치획득(설정.보스경험치);
+      보스보상토스트(정수획득, 1);
     } else {
-      상태.골드 += 일반골드(상태.현재층);
+      상태.골드 += 골드량적용(일반골드(상태.현재층));
+      if (Math.random() < 설정.보석드랍확률) 상태.보석 += 1; // 일반은 낮은 확률로 보석
+      경험치획득(설정.일반경험치);
     }
     상태.현재층 += 1;
     if (상태.현재층 > 상태.최고층) 상태.최고층 = 상태.현재층;
@@ -670,13 +1115,43 @@
     화면갱신();
   }
 
-  // "정수 +N" 토스트 (보스 처치 시)
-  function 정수토스트(개수) {
-    if (개수 <= 0) return;
-    요소.정수토스트.textContent = "정수 +" + 개수 + " 💠";
+  // 스킬 강화 (스킬 포인트 1 소비)
+  function 스킬강화(이름) {
+    if (상태.스킬포인트 < 1) return;
+    상태.스킬포인트 -= 1;
+    상태.스킬[이름] += 1;
+    저장();
+    화면갱신();
+  }
+
+  // 영구 상점 구매 (보석 소비)
+  function 상점구매(항목) {
+    const 비용 = 상점비용(항목);
+    if (상태.보석 < 비용) return;
+    상태.보석 -= 비용;
+    상태.영구상점[항목] += 1;
+    저장();
+    화면갱신();
+  }
+
+  // "정수 +N 💠  보석 +1 💎" 토스트 (보스 처치 시)
+  function 보스보상토스트(정수, 보석) {
+    let 글 = "";
+    if (정수 > 0) 글 += "정수 +" + 정수 + " 💠";
+    if (보석 > 0) 글 += (글 ? "  " : "") + "보석 +" + 보석 + " 💎";
+    if (!글) return;
+    요소.정수토스트.textContent = 글;
     요소.정수토스트.classList.remove("보임");
     void 요소.정수토스트.offsetWidth; // 애니메이션 재시작 강제
     요소.정수토스트.classList.add("보임");
+  }
+
+  // "강타! 💥 N" 토스트
+  function 강타토스트표시(데미지) {
+    요소.강타토스트.textContent = "강타! 💥 " + 데미지;
+    요소.강타토스트.classList.remove("보임");
+    void 요소.강타토스트.offsetWidth;
+    요소.강타토스트.classList.add("보임");
   }
 
   // 강화 버튼 활성/비활성 토글
@@ -699,12 +1174,23 @@
       }
     }
 
+    // 평타 (누적 주기만큼 여러 번)
     누적시간 += 경과;
     const 주기 = 현재공격주기();
     while (누적시간 >= 주기) {
       누적시간 -= 주기;
       공격();
     }
+
+    // 강타 (해금된 경우 자동 발동)
+    if (상태.스킬.강타 > 0) {
+      강타누적 += 경과;
+      if (강타누적 >= 설정.강타주기) {
+        강타누적 -= 설정.강타주기;
+        if (적현재체력 > 0) 강타발동();
+      }
+    }
+
     화면갱신();
   }
 
@@ -714,7 +1200,15 @@
     요소.최고층.textContent = 상태.최고층;
     요소.골드.textContent = 상태.골드;
     요소.정수.textContent = 상태.정수;
+    요소.보석.textContent = 상태.보석;
+    요소.상점보석.textContent = 상태.보석;
     요소.배수표시.textContent = "×" + 현재배수().toFixed(2);
+
+    // 레벨 / XP
+    요소.레벨.textContent = 상태.레벨;
+    const 필요 = 필요경험치();
+    요소.경험치바.style.width = (필요 > 0 ? (상태.경험치 / 필요) * 100 : 0) + "%";
+    요소.경험치수치.textContent = 상태.경험치 + " / " + 필요 + " XP";
 
     const 남은체력 = Math.max(0, 적현재체력);
     const 비율 = 적최대체력 > 0 ? (남은체력 / 적최대체력) * 100 : 0;
@@ -733,7 +1227,7 @@
       요소.딱지.textContent = "DUNGEON FLOOR";
     }
 
-    // 영웅 현재 능력치 (최종 데미지 = (기본+강화)×배수)
+    // 영웅 현재 능력치 (최종 데미지 = (기본+강화+레벨)×배수×부스트)
     요소.영웅정보.textContent = Math.round(최종데미지()) + " / " + 현재공격주기().toFixed(2) + "초";
 
     // 공격력 강화 패널
@@ -761,11 +1255,49 @@
     요소.배수효과.textContent = "배수 ×" + 현재배수().toFixed(2);
     요소.배수비용.textContent = 배수비;
     버튼적용(요소.배수버튼, 상태.정수 >= 배수비);
+
+    // ----- 스킬 패널 -----
+    const 포인트있음 = 상태.스킬포인트 >= 1;
+    요소.스킬포인트.textContent = 상태.스킬포인트;
+
+    요소.황금손레벨.textContent = "Lv." + 상태.스킬.황금손;
+    요소.황금손효과.textContent = "골드 획득 +" + Math.round(설정.황금손증가 * 100 * 상태.스킬.황금손) + "%";
+    버튼적용(요소.황금손버튼, 포인트있음);
+
+    요소.정수친화레벨.textContent = "Lv." + 상태.스킬.정수친화;
+    요소.정수친화효과.textContent = "보스 정수 +" + (설정.정수친화증가 * 상태.스킬.정수친화);
+    버튼적용(요소.정수친화버튼, 포인트있음);
+
+    요소.강타레벨.textContent = "Lv." + 상태.스킬.강타;
+    요소.강타효과.textContent = 상태.스킬.강타 > 0
+      ? "10초마다 평타 ×" + (설정.강타기본배수 + 상태.스킬.강타)
+      : "강화 시 10초마다 자동 발동";
+    버튼적용(요소.강타버튼, 포인트있음);
+
+    // ----- 영구 상점 패널 -----
+    const 골부비 = 상점비용("골드부스트");
+    요소.골드부스트레벨.textContent = "Lv." + 상태.영구상점.골드부스트;
+    요소.골드부스트효과.textContent = "모든 골드 +" + Math.round(설정.골드부스트증가 * 100 * 상태.영구상점.골드부스트) + "%";
+    요소.골드부스트비용.textContent = 골부비;
+    버튼적용(요소.골드부스트버튼, 상태.보석 >= 골부비);
+
+    const 뎀부비 = 상점비용("데미지부스트");
+    요소.데미지부스트레벨.textContent = "Lv." + 상태.영구상점.데미지부스트;
+    요소.데미지부스트효과.textContent = "모든 데미지 +" + Math.round(설정.데미지부스트증가 * 100 * 상태.영구상점.데미지부스트) + "%";
+    요소.데미지부스트비용.textContent = 뎀부비;
+    버튼적용(요소.데미지부스트버튼, 상태.보석 >= 뎀부비);
+
+    const 오프비 = 상점비용("오프라인상한");
+    요소.오프라인상한레벨.textContent = "Lv." + 상태.영구상점.오프라인상한;
+    요소.오프라인상한효과.textContent = "오프라인 보상 최대 " + (8 + 상태.영구상점.오프라인상한) + "시간";
+    요소.오프라인상한비용.textContent = 오프비;
+    버튼적용(요소.오프라인상한버튼, 상태.보석 >= 오프비);
   }
 
-  // localStorage 저장 (골드·현재층·강화 레벨·최고층·정수·배수)
+  // localStorage 저장 (진행 데이터 + 영구 데이터 + 마지막 접속 시각)
   function 저장() {
     try {
+      상태.마지막접속 = Date.now(); // 저장할 때마다 갱신 → 다음 접속 때 흐른 시간 계산
       localStorage.setItem(저장키, JSON.stringify({
         골드: 상태.골드,
         현재층: 상태.현재층,
@@ -773,14 +1305,21 @@
         공격속도레벨: 상태.공격속도레벨,
         최고층: 상태.최고층,
         정수: 상태.정수,
-        배수강화레벨: 상태.배수강화레벨
+        배수강화레벨: 상태.배수강화레벨,
+        경험치: 상태.경험치,
+        레벨: 상태.레벨,
+        스킬포인트: 상태.스킬포인트,
+        스킬: 상태.스킬,
+        보석: 상태.보석,
+        영구상점: 상태.영구상점,
+        마지막접속: 상태.마지막접속
       }));
     } catch (오류) {
       /* 저장 실패는 무시 (시크릿 모드 등) */
     }
   }
 
-  // 세이브 데이터 → 상태 반영 (v2~v4 공통; 없는 필드는 기본값 유지)
+  // 세이브 데이터 → 상태 반영 (v2~v5 공통; 없는 필드는 기본값 유지)
   function 세이브적용(데이터) {
     if (typeof 데이터.골드 === "number") 상태.골드 = 데이터.골드;
     if (typeof 데이터.현재층 === "number" && 데이터.현재층 >= 1) 상태.현재층 = 데이터.현재층;
@@ -788,13 +1327,35 @@
     if (typeof 데이터.공격속도레벨 === "number" && 데이터.공격속도레벨 >= 0) {
       상태.공격속도레벨 = Math.min(데이터.공격속도레벨, 공격속도최대레벨);
     }
-    if (typeof 데이터.최고층 === "number" && 데이터.최고층 >= 1) 상태.최고층 = 데이터.최고층; // v3+
-    if (typeof 데이터.정수 === "number" && 데이터.정수 >= 0) 상태.정수 = 데이터.정수;             // v4+
+    if (typeof 데이터.최고층 === "number" && 데이터.최고층 >= 1) 상태.최고층 = 데이터.최고층;         // v3+
+    if (typeof 데이터.정수 === "number" && 데이터.정수 >= 0) 상태.정수 = 데이터.정수;                 // v4+
     if (typeof 데이터.배수강화레벨 === "number" && 데이터.배수강화레벨 >= 0) 상태.배수강화레벨 = 데이터.배수강화레벨; // v4+
+
+    // v5 — 경험치/레벨/스킬
+    if (typeof 데이터.경험치 === "number" && 데이터.경험치 >= 0) 상태.경험치 = 데이터.경험치;
+    if (typeof 데이터.레벨 === "number" && 데이터.레벨 >= 1) 상태.레벨 = 데이터.레벨;
+    if (typeof 데이터.스킬포인트 === "number" && 데이터.스킬포인트 >= 0) 상태.스킬포인트 = 데이터.스킬포인트;
+    if (데이터.스킬 && typeof 데이터.스킬 === "object") {
+      if (typeof 데이터.스킬.황금손 === "number" && 데이터.스킬.황금손 >= 0) 상태.스킬.황금손 = 데이터.스킬.황금손;
+      if (typeof 데이터.스킬.정수친화 === "number" && 데이터.스킬.정수친화 >= 0) 상태.스킬.정수친화 = 데이터.스킬.정수친화;
+      if (typeof 데이터.스킬.강타 === "number" && 데이터.스킬.강타 >= 0) 상태.스킬.강타 = 데이터.스킬.강타;
+    }
+
+    // v5 — 영구(보석/영구상점)
+    if (typeof 데이터.보석 === "number" && 데이터.보석 >= 0) 상태.보석 = 데이터.보석;
+    if (데이터.영구상점 && typeof 데이터.영구상점 === "object") {
+      if (typeof 데이터.영구상점.골드부스트 === "number" && 데이터.영구상점.골드부스트 >= 0) 상태.영구상점.골드부스트 = 데이터.영구상점.골드부스트;
+      if (typeof 데이터.영구상점.데미지부스트 === "number" && 데이터.영구상점.데미지부스트 >= 0) 상태.영구상점.데미지부스트 = 데이터.영구상점.데미지부스트;
+      if (typeof 데이터.영구상점.오프라인상한 === "number" && 데이터.영구상점.오프라인상한 >= 0) 상태.영구상점.오프라인상한 = 데이터.영구상점.오프라인상한;
+    }
+
+    // v5 — 마지막 접속(오프라인 보상용). 없으면 0 → 첫 접속은 오프라인 보상 없음
+    if (typeof 데이터.마지막접속 === "number" && 데이터.마지막접속 > 0) 상태.마지막접속 = 데이터.마지막접속;
+
     if (상태.현재층 > 상태.최고층) 상태.최고층 = 상태.현재층; // 최고층은 항상 현재층 이상
   }
 
-  // localStorage 복원 (v4 우선, 없으면 v3 → v2 → v1 순으로 이어받기)
+  // localStorage 복원 (v5 우선, 없으면 v4 → v3 → v2 → v1 순으로 이어받기)
   function 복원() {
     try {
       const 현재원본 = localStorage.getItem(저장키);
@@ -805,8 +1366,8 @@
       for (const 옛키 of 이전저장키들) {
         const 옛원본 = localStorage.getItem(옛키);
         if (옛원본) {
-          세이브적용(JSON.parse(옛원본)); // 골드·층·강화·최고층 보존 (정수·배수는 0부터)
-          저장(); // v4 형식으로 옮겨 저장
+          세이브적용(JSON.parse(옛원본)); // 기존 값 보존 (새 값은 0/기본부터)
+          저장(); // v5 형식으로 옮겨 저장
           return;
         }
       }
@@ -815,14 +1376,82 @@
     }
   }
 
+  // ----- 초기화: 진행 데이터만 리셋, 보석/영구상점은 유지 -----
+  function 초기화실행() {
+    상태.골드 = 0;
+    상태.현재층 = 1;
+    상태.공격력레벨 = 0;
+    상태.공격속도레벨 = 0;
+    상태.최고층 = 1;
+    상태.정수 = 0;
+    상태.배수강화레벨 = 0;
+    상태.경험치 = 0;
+    상태.레벨 = 1;
+    상태.스킬포인트 = 0;
+    상태.스킬 = { 황금손: 0, 정수친화: 0, 강타: 0 };
+    // 보석·영구상점은 그대로 유지
+    누적시간 = 0;
+    강타누적 = 0;
+    적생성();
+    저장();
+    화면갱신();
+    모달닫기(요소.초기화막);
+  }
+
+  // ----- 모달 열기/닫기 -----
+  function 모달열기(막) { 막.classList.add("보임"); }
+  function 모달닫기(막) { 막.classList.remove("보임"); }
+
+  // 오프라인 보상 모달 표시
+  function 오프라인보상표시(결과) {
+    const 시 = Math.floor(결과.초 / 3600);
+    const 분 = Math.floor((결과.초 % 3600) / 60);
+    let 시간글 = "";
+    if (시 > 0) 시간글 += 시 + "시간 ";
+    시간글 += 분 + "분";
+    요소.오프라인내용.innerHTML =
+      "자리를 비운 <b>" + 시간글 + "</b> 동안<br>골드 <b>" + 결과.골드.toLocaleString() + "</b> 을 모았어요";
+    요소.오프라인받기.onclick = function () {
+      상태.골드 += 결과.골드;
+      저장();
+      화면갱신();
+      모달닫기(요소.오프라인막);
+    };
+    모달열기(요소.오프라인막);
+  }
+
   // ----- 시작 -----
   function 시작() {
     복원();
+
+    // 오프라인 보상 (저장이 마지막접속을 덮어쓰기 전에 먼저 계산)
+    const 오프 = 오프라인계산();
+
+    // 강화 버튼
     요소.공격력버튼.addEventListener("click", 공격력강화);
     요소.공격속도버튼.addEventListener("click", 공격속도강화);
     요소.배수버튼.addEventListener("click", 배수강화);
+
+    // 스킬 버튼
+    요소.황금손버튼.addEventListener("click", function () { 스킬강화("황금손"); });
+    요소.정수친화버튼.addEventListener("click", function () { 스킬강화("정수친화"); });
+    요소.강타버튼.addEventListener("click", function () { 스킬강화("강타"); });
+
+    // 영구 상점 버튼
+    요소.골드부스트버튼.addEventListener("click", function () { 상점구매("골드부스트"); });
+    요소.데미지부스트버튼.addEventListener("click", function () { 상점구매("데미지부스트"); });
+    요소.오프라인상한버튼.addEventListener("click", function () { 상점구매("오프라인상한"); });
+
+    // 초기화 버튼 + 모달
+    요소.초기화버튼.addEventListener("click", function () { 모달열기(요소.초기화막); });
+    요소.초기화취소.addEventListener("click", function () { 모달닫기(요소.초기화막); });
+    요소.초기화확인.addEventListener("click", 초기화실행);
+
     적생성();
     화면갱신();
+
+    if (오프) 오프라인보상표시(오프); // 모았으면 안내창
+
     setInterval(틱, 설정.틱간격);
   }
 
