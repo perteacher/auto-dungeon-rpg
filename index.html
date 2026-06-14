@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>자동 던전 RPG · BUILD M2-01</title>
+<title>자동 던전 RPG · BUILD M3-01</title>
 <style>
   /* ===== 전역 스타일 ===== */
   :root {
@@ -83,6 +83,12 @@
     background-clip: text;
     color: transparent;
   }
+  .최고기록 {
+    font-size: 11px;
+    color: var(--흐린글자);
+    margin-top: 2px;
+    font-family: ui-monospace, Consolas, monospace;
+  }
 
   /* ===== 적 무대 ===== */
   .적무대 {
@@ -141,6 +147,56 @@
     font-size: 12px;
     font-weight: 700;
     text-shadow: 0 1px 2px rgba(0,0,0,.7);
+    font-family: ui-monospace, Consolas, monospace;
+  }
+
+  /* ===== 보스 연출 (보스 층에서만) ===== */
+  .적무대.보스전 {
+    border-color: var(--금색);
+    background: radial-gradient(80% 90% at 50% 30%, #2a2238 0%, #16121d 80%);
+    box-shadow: inset 0 0 0 1px rgba(255,207,92,.25), inset 0 0 28px rgba(255,207,92,.16);
+  }
+  .보스띠 {
+    display: none;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--금색);
+    margin-bottom: 8px;
+  }
+  .적무대.보스전 .보스띠 { display: block; }
+  .적무대.보스전 .적그림 { animation: 보스맥박 1.4s ease-in-out infinite; }
+  @keyframes 보스맥박 {
+    0%, 100% { transform: scale(1);    filter: drop-shadow(0 8px 14px rgba(0,0,0,.5)); }
+    50%      { transform: scale(1.06); filter: drop-shadow(0 10px 20px rgba(255,207,92,.4)); }
+  }
+  .시간틀 {
+    display: none;
+    margin-top: 8px;
+    height: 16px;
+    background: #0c0e15;
+    border: 1px solid var(--테두리);
+    border-radius: 9px;
+    overflow: hidden;
+    position: relative;
+  }
+  .적무대.보스전 .시간틀 { display: block; }
+  .시간바 {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #ffcf5c, #ff9d3c);
+    transition: width .12s linear;
+  }
+  .시간수치 {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,.8);
     font-family: ui-monospace, Consolas, monospace;
   }
 
@@ -247,20 +303,26 @@
   <main class="게임판">
     <div class="머리말">
       <h1>⚔️ 자동 던전</h1>
-      <span class="빌드라벨">BUILD M2-01</span>
+      <span class="빌드라벨">BUILD M3-01</span>
     </div>
 
     <div class="층표시">
-      <div class="딱지">DUNGEON FLOOR</div>
+      <div class="딱지" id="딱지">DUNGEON FLOOR</div>
       <div class="숫자" id="현재층">1</div>
+      <div class="최고기록">최고 <span id="최고층">1</span>층</div>
     </div>
 
-    <section class="적무대">
+    <section class="적무대" id="적무대">
+      <div class="보스띠" id="보스띠">⚠️ 보스 출현</div>
       <div class="적그림" id="적그림">👹</div>
       <div class="적이름" id="적이름">고블린</div>
       <div class="체력틀">
         <div class="체력바" id="체력바"></div>
         <div class="체력수치" id="체력수치">30 / 30</div>
+      </div>
+      <div class="시간틀" id="시간틀">
+        <div class="시간바" id="시간바"></div>
+        <div class="시간수치" id="시간수치">30.0초</div>
       </div>
     </section>
 
@@ -295,25 +357,26 @@
       </button>
     </section>
 
-    <p class="안내">영웅이 자동 전투합니다. 골드로 강화하세요. 진행은 자동 저장됩니다.</p>
+    <p class="안내">영웅이 자동 전투합니다. 골드로 강화하세요. 10층마다 보스 관문! 진행은 자동 저장됩니다.</p>
   </main>
 
 <script>
 /* =========================================================
-   자동 던전 RPG — M2 (M1 자동 전투 + 골드로 영웅 강화)
-   - 영웅은 무조건 이긴다. 적은 반격하지 않는다.
-   - 골드로 공격력 / 공격속도 강화 (골드 소비처 도입).
+   자동 던전 RPG — M3 (M2 + 층·보스 게이트)
+   - 영웅은 무조건 이긴다. 일반 몬스터는 반격하지 않는다.
+   - 골드로 공격력 / 공격속도 강화 (골드 소비처).
+   - 매 10층마다 보스(큰 체력 + 제한시간). 시간 내 처치 → 큰 보상·진행,
+     실패 → 직전 구간으로 복귀해 farming → 강화 후 자동 재도전.
    ========================================================= */
 
-  const 저장키 = "dungeon_save_v2";
-  const 이전저장키 = "dungeon_save_v1"; // M1 세이브 — v2가 없을 때 이어받기용
+  const 저장키 = "dungeon_save_v3";
+  const 이전저장키들 = ["dungeon_save_v2", "dungeon_save_v1"]; // 옛 세이브 — v3 없을 때 순서대로 이어받기
 
   // ----- 밸런스 수치 (자유롭게 조정 가능) -----
   const 설정 = {
     기본공격력: 10,      // 강화 0레벨일 때 한 번 칠 때 깎는 적 체력
     기본공격주기: 1.0,   // 초 — 강화 0레벨일 때 공격 간격
     적시작체력: 30,      // 1층 적의 체력
-    처치골드: 5,         // 적 1명 처치 시 얻는 골드
     체력증가배율: 1.15,  // 다음 층 적 체력 = 이전 × 1.15
     틱간격: 100,         // ms — 게임 루프 주기
 
@@ -324,7 +387,14 @@
     공격속도감소량: 0.05, // 공격속도 강화 레벨당 -공격주기(초)
     공격주기하한: 0.2,    // 공격주기 최소값(초)
     공격속도기본비용: 50, // 공격속도 강화 0레벨 구매 비용
-    공격속도비용배율: 1.8 // 다음 비용 = 기본 × 배율^레벨
+    공격속도비용배율: 1.8, // 다음 비용 = 기본 × 배율^레벨
+
+    // --- 보스 게이트(M3) ---
+    골드층계수: 5,       // 일반 처치 골드 = 계수 × 층 (정체 완화)
+    보스주기: 10,        // 매 N층마다 보스 등장 (10, 20, 30…)
+    보스체력배율: 8,     // 보스 체력 = 그 층 일반 체력 × N
+    보스제한시간: 30,    // 초 — 이 안에 못 잡으면 실패
+    보스보상배율: 20     // 보스 처치 보상 = 그 층 일반 골드 × N (한 방)
   };
 
   // ----- 적 도감 (표시용 이름·그림, 층에 따라 순환) -----
@@ -339,18 +409,30 @@
     { 이름: "용",     그림: "🐉" }
   ];
 
+  // ----- 보스 도감 (표시용, 보스 순서에 따라 순환) -----
+  const 보스도감 = [
+    { 이름: "오우거 왕", 그림: "🧌" },
+    { 이름: "골렘",     그림: "🗿" },
+    { 이름: "리치",     그림: "🧙" },
+    { 이름: "데몬",     그림: "👿" },
+    { 이름: "드래곤",   그림: "🐲" }
+  ];
+
   // ----- 게임 상태 (저장 대상: 골드·현재층·강화 레벨) -----
   const 상태 = {
     골드: 0,
     현재층: 1,
     공격력레벨: 0,   // 공격력 강화 횟수
-    공격속도레벨: 0  // 공격속도 강화 횟수
+    공격속도레벨: 0, // 공격속도 강화 횟수
+    최고층: 1        // 지금까지 도달한 최고 층 (기록)
   };
 
   // ----- 현재 적 상태 (저장하지 않음 — 층에서 다시 계산) -----
   let 적최대체력 = 0;
   let 적현재체력 = 0;
-  let 누적시간 = 0; // 공격주기 채우기용 (초)
+  let 누적시간 = 0;       // 공격주기 채우기용 (초)
+  let 보스전투중 = false; // 현재 적이 보스인지
+  let 보스남은시간 = 0;   // 보스 제한시간 남은 초
 
   // 화면 요소 미리 잡아두기
   const 요소 = {
@@ -368,7 +450,13 @@
     공격속도버튼: document.getElementById("공격속도버튼"),
     공격속도레벨: document.getElementById("공격속도레벨"),
     공격속도효과: document.getElementById("공격속도효과"),
-    공격속도비용: document.getElementById("공격속도비용")
+    공격속도비용: document.getElementById("공격속도비용"),
+    적무대: document.getElementById("적무대"),
+    딱지: document.getElementById("딱지"),
+    최고층: document.getElementById("최고층"),
+    보스띠: document.getElementById("보스띠"),
+    시간바: document.getElementById("시간바"),
+    시간수치: document.getElementById("시간수치")
   };
 
   // 층 번호로 적 최대 체력 계산
@@ -395,13 +483,39 @@
     return Math.floor(설정.공격속도기본비용 * Math.pow(설정.공격속도비용배율, 상태.공격속도레벨));
   }
 
-  // 새 적 등장 (현재 층 기준)
+  // 보스 층인가? (매 보스주기 층마다: 10, 20, 30…)
+  function 보스층인가(층) {
+    return 층 % 설정.보스주기 === 0;
+  }
+
+  // 일반 몬스터 처치 골드 (층에 비례 — 정체 완화)
+  function 일반골드(층) {
+    return 설정.골드층계수 * 층;
+  }
+
+  // 보스 처치 보상 (그 층 일반 골드 × 배율, 한 방)
+  function 보스보상(층) {
+    return 일반골드(층) * 설정.보스보상배율;
+  }
+
+  // 새 적 등장 (현재 층 기준 — 보스 층이면 보스)
   function 적생성() {
-    적최대체력 = 층별적체력(상태.현재층);
+    const 기본체력 = 층별적체력(상태.현재층);
+    if (보스층인가(상태.현재층)) {
+      보스전투중 = true;
+      적최대체력 = Math.round(기본체력 * 설정.보스체력배율);
+      보스남은시간 = 설정.보스제한시간;
+      const 보스 = 보스도감[(상태.현재층 / 설정.보스주기 - 1) % 보스도감.length];
+      요소.적이름.textContent = "보스 · " + 보스.이름;
+      요소.적그림.textContent = 보스.그림;
+    } else {
+      보스전투중 = false;
+      적최대체력 = 기본체력;
+      const 도감항목 = 적도감[(상태.현재층 - 1) % 적도감.length];
+      요소.적이름.textContent = 도감항목.이름;
+      요소.적그림.textContent = 도감항목.그림;
+    }
     적현재체력 = 적최대체력;
-    const 도감항목 = 적도감[(상태.현재층 - 1) % 적도감.length];
-    요소.적이름.textContent = 도감항목.이름;
-    요소.적그림.textContent = 도감항목.그림;
   }
 
   // 영웅의 한 번 공격
@@ -418,11 +532,21 @@
     }
   }
 
-  // 적 처치 처리 → 보상 + 다음 적
+  // 적 처치 처리 → 보상 + 다음 층
   function 적처치() {
-    상태.골드 += 설정.처치골드;
+    상태.골드 += 보스전투중 ? 보스보상(상태.현재층) : 일반골드(상태.현재층);
     상태.현재층 += 1;
+    if (상태.현재층 > 상태.최고층) 상태.최고층 = 상태.현재층;
     적생성();
+    저장();
+  }
+
+  // 보스 제한시간 초과 → 직전 일반 구간으로 복귀해 farming
+  function 보스실패() {
+    // 구간 시작으로 복귀 (보스10→1층, 보스20→11층 …). 충분히 강해지면 다시 닿아 자동 재도전.
+    상태.현재층 = Math.max(1, 상태.현재층 - (설정.보스주기 - 1));
+    누적시간 = 0;
+    적생성(); // 일반 몬스터부터 다시 (골드 수입 재개)
     저장();
   }
 
@@ -455,7 +579,19 @@
 
   // 게임 루프 1회 (틱간격마다 호출)
   function 틱() {
-    누적시간 += 설정.틱간격 / 1000;
+    const 경과 = 설정.틱간격 / 1000;
+
+    // 보스 제한시간 카운트다운
+    if (보스전투중) {
+      보스남은시간 -= 경과;
+      if (보스남은시간 <= 0) {
+        보스실패();   // 시간 초과 → 직전 구간으로 복귀
+        화면갱신();
+        return;
+      }
+    }
+
+    누적시간 += 경과;
     const 주기 = 현재공격주기();
     while (누적시간 >= 주기) {
       누적시간 -= 주기;
@@ -467,11 +603,25 @@
   // 화면 표시 갱신
   function 화면갱신() {
     요소.현재층.textContent = 상태.현재층;
+    요소.최고층.textContent = 상태.최고층;
     요소.골드.textContent = 상태.골드;
+
     const 남은체력 = Math.max(0, 적현재체력);
     const 비율 = 적최대체력 > 0 ? (남은체력 / 적최대체력) * 100 : 0;
     요소.체력바.style.width = 비율 + "%";
     요소.체력수치.textContent = Math.ceil(남은체력) + " / " + 적최대체력;
+
+    // 보스 층 UI (보스 띠 + 제한시간 타이머)
+    if (보스전투중) {
+      요소.적무대.classList.add("보스전");
+      요소.딱지.textContent = "BOSS FLOOR";
+      const 남은시간 = Math.max(0, 보스남은시간);
+      요소.시간바.style.width = (남은시간 / 설정.보스제한시간 * 100) + "%";
+      요소.시간수치.textContent = 남은시간.toFixed(1) + "초";
+    } else {
+      요소.적무대.classList.remove("보스전");
+      요소.딱지.textContent = "DUNGEON FLOOR";
+    }
 
     // 영웅 현재 능력치 (강화 반영)
     요소.영웅정보.textContent = 현재공격력() + " / " + 현재공격주기().toFixed(2) + "초";
@@ -496,41 +646,48 @@
     }
   }
 
-  // localStorage 저장 (골드·현재층·강화 레벨)
+  // localStorage 저장 (골드·현재층·강화 레벨·최고층)
   function 저장() {
     try {
       localStorage.setItem(저장키, JSON.stringify({
         골드: 상태.골드,
         현재층: 상태.현재층,
         공격력레벨: 상태.공격력레벨,
-        공격속도레벨: 상태.공격속도레벨
+        공격속도레벨: 상태.공격속도레벨,
+        최고층: 상태.최고층
       }));
     } catch (오류) {
       /* 저장 실패는 무시 (시크릿 모드 등) */
     }
   }
 
-  // localStorage 복원 (v2 우선, 없으면 v1 세이브 이어받기)
+  // 세이브 데이터 → 상태 반영 (v2·v3 공통; 최고층은 v3에만 존재)
+  function 세이브적용(데이터) {
+    if (typeof 데이터.골드 === "number") 상태.골드 = 데이터.골드;
+    if (typeof 데이터.현재층 === "number" && 데이터.현재층 >= 1) 상태.현재층 = 데이터.현재층;
+    if (typeof 데이터.공격력레벨 === "number" && 데이터.공격력레벨 >= 0) 상태.공격력레벨 = 데이터.공격력레벨;
+    if (typeof 데이터.공격속도레벨 === "number" && 데이터.공격속도레벨 >= 0) {
+      상태.공격속도레벨 = Math.min(데이터.공격속도레벨, 공격속도최대레벨);
+    }
+    if (typeof 데이터.최고층 === "number" && 데이터.최고층 >= 1) 상태.최고층 = 데이터.최고층;
+    if (상태.현재층 > 상태.최고층) 상태.최고층 = 상태.현재층; // 최고층은 항상 현재층 이상
+  }
+
+  // localStorage 복원 (v3 우선, 없으면 v2 → v1 순으로 이어받기)
   function 복원() {
     try {
-      const v2원본 = localStorage.getItem(저장키);
-      if (v2원본) {
-        const 데이터 = JSON.parse(v2원본);
-        if (typeof 데이터.골드 === "number") 상태.골드 = 데이터.골드;
-        if (typeof 데이터.현재층 === "number" && 데이터.현재층 >= 1) 상태.현재층 = 데이터.현재층;
-        if (typeof 데이터.공격력레벨 === "number" && 데이터.공격력레벨 >= 0) 상태.공격력레벨 = 데이터.공격력레벨;
-        if (typeof 데이터.공격속도레벨 === "number" && 데이터.공격속도레벨 >= 0) {
-          상태.공격속도레벨 = Math.min(데이터.공격속도레벨, 공격속도최대레벨);
-        }
+      const v3원본 = localStorage.getItem(저장키);
+      if (v3원본) {
+        세이브적용(JSON.parse(v3원본));
         return;
       }
-      // v2가 없으면 M1(v1) 세이브를 읽어 이어받기 (골드·층 보존, 강화는 0)
-      const v1원본 = localStorage.getItem(이전저장키);
-      if (v1원본) {
-        const 데이터 = JSON.parse(v1원본);
-        if (typeof 데이터.골드 === "number") 상태.골드 = 데이터.골드;
-        if (typeof 데이터.현재층 === "number" && 데이터.현재층 >= 1) 상태.현재층 = 데이터.현재층;
-        저장(); // v2 형식으로 옮겨 저장
+      for (const 옛키 of 이전저장키들) {
+        const 옛원본 = localStorage.getItem(옛키);
+        if (옛원본) {
+          세이브적용(JSON.parse(옛원본)); // 골드·층·강화 보존 (최고층 없으면 현재층으로)
+          저장(); // v3 형식으로 옮겨 저장
+          return;
+        }
       }
     } catch (오류) {
       /* 손상된 저장은 무시하고 새 게임으로 시작 */
