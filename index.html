@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>자동 던전 RPG · BUILD M1-01</title>
+<style>
+  /* ===== 전역 스타일 ===== */
+  :root {
+    --바탕: #0f1118;
+    --판넬: #1a1d2b;
+    --테두리: #2e3350;
+    --글자: #e8e6df;
+    --흐린글자: #8a8fa8;
+    --금색: #ffcf5c;
+    --핏빛: #d2453f;
+    --핏빛밝게: #ff6b63;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #232845 0%, transparent 55%),
+      var(--바탕);
+    color: var(--글자);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .게임판 {
+    width: 100%;
+    max-width: 460px;
+    background: linear-gradient(180deg, var(--판넬), #14161f);
+    border: 1px solid var(--테두리);
+    border-radius: 18px;
+    padding: 26px 24px 28px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+
+  /* ===== 머리말 ===== */
+  .머리말 {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 22px;
+  }
+  .머리말 h1 {
+    font-size: 19px;
+    letter-spacing: .5px;
+    font-weight: 700;
+  }
+  .빌드라벨 {
+    font-size: 11px;
+    color: var(--흐린글자);
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    border: 1px solid var(--테두리);
+    border-radius: 6px;
+    padding: 2px 7px;
+  }
+
+  /* ===== 층 표시 ===== */
+  .층표시 {
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .층표시 .딱지 {
+    font-size: 12px;
+    color: var(--흐린글자);
+    letter-spacing: 3px;
+  }
+  .층표시 .숫자 {
+    font-size: 46px;
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(180deg, #fff, #b9bdd6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ===== 적 무대 ===== */
+  .적무대 {
+    background: radial-gradient(80% 90% at 50% 30%, #20243a 0%, #12141d 80%);
+    border: 1px solid var(--테두리);
+    border-radius: 14px;
+    padding: 22px 18px 18px;
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .적그림 {
+    font-size: 64px;
+    line-height: 1;
+    display: inline-block;
+    filter: drop-shadow(0 8px 14px rgba(0,0,0,.5));
+    transition: transform .08s ease;
+  }
+  .적그림.피격 {
+    animation: 흔들림 .22s ease;
+  }
+  @keyframes 흔들림 {
+    0%   { transform: translateX(0) scale(1); }
+    25%  { transform: translateX(-7px) scale(1.04); }
+    55%  { transform: translateX(6px) scale(.98); }
+    100% { transform: translateX(0) scale(1); }
+  }
+  .적이름 {
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--흐린글자);
+  }
+
+  /* ===== 체력바 ===== */
+  .체력틀 {
+    margin-top: 14px;
+    height: 22px;
+    background: #0c0e15;
+    border: 1px solid var(--테두리);
+    border-radius: 11px;
+    overflow: hidden;
+    position: relative;
+  }
+  .체력바 {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, var(--핏빛), var(--핏빛밝게));
+    border-radius: 11px 0 0 11px;
+    transition: width .12s linear;
+  }
+  .체력수치 {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0,0,0,.7);
+    font-family: ui-monospace, Consolas, monospace;
+  }
+
+  /* ===== 상태 정보 ===== */
+  .정보줄 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .정보칸 {
+    background: #14161f;
+    border: 1px solid var(--테두리);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .정보칸 .라벨 {
+    font-size: 11px;
+    color: var(--흐린글자);
+    margin-bottom: 4px;
+  }
+  .정보칸 .값 {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  .정보칸.골드칸 .값 { color: var(--금색); }
+
+  .안내 {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--흐린글자);
+  }
+</style>
+</head>
+<body>
+  <main class="게임판">
+    <div class="머리말">
+      <h1>⚔️ 자동 던전</h1>
+      <span class="빌드라벨">BUILD M1-01</span>
+    </div>
+
+    <div class="층표시">
+      <div class="딱지">DUNGEON FLOOR</div>
+      <div class="숫자" id="현재층">1</div>
+    </div>
+
+    <section class="적무대">
+      <div class="적그림" id="적그림">👹</div>
+      <div class="적이름" id="적이름">고블린</div>
+      <div class="체력틀">
+        <div class="체력바" id="체력바"></div>
+        <div class="체력수치" id="체력수치">30 / 30</div>
+      </div>
+    </section>
+
+    <div class="정보줄">
+      <div class="정보칸 골드칸">
+        <div class="라벨">💰 보유 골드</div>
+        <div class="값" id="골드">0</div>
+      </div>
+      <div class="정보칸">
+        <div class="라벨">🗡️ 공격력 / 주기</div>
+        <div class="값" id="영웅정보">10 / 1.0초</div>
+      </div>
+    </div>
+
+    <p class="안내">영웅이 자동으로 전투합니다. 진행 상황은 자동 저장됩니다.</p>
+  </main>
+
+<script>
+/* =========================================================
+   자동 던전 RPG — M1 (영웅이 적 1명과 자동 전투하는 최소 뼈대)
+   - 영웅은 무조건 이긴다. 적은 반격하지 않는다.
+   ========================================================= */
+
+  const 저장키 = "dungeon_save_v1";
+
+  // ----- 밸런스 수치 (자유롭게 조정 가능) -----
+  const 설정 = {
+    영웅공격력: 10,      // 한 번 칠 때 깎는 적 체력
+    영웅공격주기: 1.0,   // 초 — 이 간격마다 한 번 공격
+    적시작체력: 30,      // 1층 적의 체력
+    처치골드: 5,         // 적 1명 처치 시 얻는 골드
+    체력증가배율: 1.15,  // 다음 층 적 체력 = 이전 × 1.15
+    틱간격: 100          // ms — 게임 루프 주기
+  };
+
+  // ----- 적 도감 (표시용 이름·그림, 층에 따라 순환) -----
+  const 적도감 = [
+    { 이름: "슬라임", 그림: "🟢" },
+    { 이름: "박쥐",   그림: "🦇" },
+    { 이름: "고블린", 그림: "👹" },
+    { 이름: "거미",   그림: "🕷️" },
+    { 이름: "해골",   그림: "💀" },
+    { 이름: "유령",   그림: "👻" },
+    { 이름: "오크",   그림: "👺" },
+    { 이름: "용",     그림: "🐉" }
+  ];
+
+  // ----- 게임 상태 (저장 대상: 골드·현재층) -----
+  const 상태 = {
+    골드: 0,
+    현재층: 1
+  };
+
+  // ----- 현재 적 상태 (저장하지 않음 — 층에서 다시 계산) -----
+  let 적최대체력 = 0;
+  let 적현재체력 = 0;
+  let 누적시간 = 0; // 공격주기 채우기용 (초)
+
+  // 화면 요소 미리 잡아두기
+  const 요소 = {
+    현재층: document.getElementById("현재층"),
+    골드: document.getElementById("골드"),
+    영웅정보: document.getElementById("영웅정보"),
+    적그림: document.getElementById("적그림"),
+    적이름: document.getElementById("적이름"),
+    체력바: document.getElementById("체력바"),
+    체력수치: document.getElementById("체력수치")
+  };
+
+  // 층 번호로 적 최대 체력 계산
+  function 층별적체력(층) {
+    return Math.round(설정.적시작체력 * Math.pow(설정.체력증가배율, 층 - 1));
+  }
+
+  // 새 적 등장 (현재 층 기준)
+  function 적생성() {
+    적최대체력 = 층별적체력(상태.현재층);
+    적현재체력 = 적최대체력;
+    const 도감항목 = 적도감[(상태.현재층 - 1) % 적도감.length];
+    요소.적이름.textContent = 도감항목.이름;
+    요소.적그림.textContent = 도감항목.그림;
+  }
+
+  // 영웅의 한 번 공격
+  function 공격() {
+    적현재체력 -= 설정.영웅공격력;
+
+    // 피격 흔들림 효과
+    요소.적그림.classList.remove("피격");
+    void 요소.적그림.offsetWidth; // 애니메이션 재시작 강제
+    요소.적그림.classList.add("피격");
+
+    if (적현재체력 <= 0) {
+      적처치();
+    }
+  }
+
+  // 적 처치 처리 → 보상 + 다음 적
+  function 적처치() {
+    상태.골드 += 설정.처치골드;
+    상태.현재층 += 1;
+    적생성();
+    저장();
+  }
+
+  // 게임 루프 1회 (틱간격마다 호출)
+  function 틱() {
+    누적시간 += 설정.틱간격 / 1000;
+    while (누적시간 >= 설정.영웅공격주기) {
+      누적시간 -= 설정.영웅공격주기;
+      공격();
+    }
+    화면갱신();
+  }
+
+  // 화면 표시 갱신
+  function 화면갱신() {
+    요소.현재층.textContent = 상태.현재층;
+    요소.골드.textContent = 상태.골드;
+    const 남은체력 = Math.max(0, 적현재체력);
+    const 비율 = 적최대체력 > 0 ? (남은체력 / 적최대체력) * 100 : 0;
+    요소.체력바.style.width = 비율 + "%";
+    요소.체력수치.textContent = Math.ceil(남은체력) + " / " + 적최대체력;
+  }
+
+  // localStorage 저장 (골드·현재층만)
+  function 저장() {
+    try {
+      localStorage.setItem(저장키, JSON.stringify({
+        골드: 상태.골드,
+        현재층: 상태.현재층
+      }));
+    } catch (오류) {
+      /* 저장 실패는 무시 (시크릿 모드 등) */
+    }
+  }
+
+  // localStorage 복원
+  function 복원() {
+    try {
+      const 원본 = localStorage.getItem(저장키);
+      if (!원본) return;
+      const 데이터 = JSON.parse(원본);
+      if (typeof 데이터.골드 === "number") 상태.골드 = 데이터.골드;
+      if (typeof 데이터.현재층 === "number" && 데이터.현재층 >= 1) 상태.현재층 = 데이터.현재층;
+    } catch (오류) {
+      /* 손상된 저장은 무시하고 새 게임으로 시작 */
+    }
+  }
+
+  // ----- 시작 -----
+  function 시작() {
+    복원();
+    요소.영웅정보.textContent = 설정.영웅공격력 + " / " + 설정.영웅공격주기.toFixed(1) + "초";
+    적생성();
+    화면갱신();
+    setInterval(틱, 설정.틱간격);
+  }
+
+  시작();
+</script>
+</body>
+</html>
