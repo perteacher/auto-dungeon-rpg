@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>자동 던전 RPG · BUILD M5-01</title>
+<title>자동 던전 RPG · BUILD M6-01</title>
 <style>
   /* ===== 전역 스타일 ===== */
   :root {
@@ -509,16 +509,152 @@
     color: #fff;
   }
   .막버튼:hover { filter: brightness(1.06); }
+
+  /* ===== 장비 드랍 토스트 (조금 더 아래) ===== */
+  .장비토스트 {
+    position: absolute;
+    top: 78px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,.06);
+    border: 1px solid #8a8fa8;
+    color: #ddd;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 5px 11px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 5;
+  }
+  .장비토스트.보임 { animation: 토스트떠오름 1.6s ease forwards; }
+
+  /* ===== 장비: 장착 슬롯 3개 ===== */
+  .장착줄 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .장착칸 {
+    background: #14161f;
+    border: 1px solid var(--테두리);
+    border-radius: 10px;
+    padding: 10px 10px 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-height: 96px;
+  }
+  .장착칸.찼음 { border-color: #3a4170; background: #181b29; }
+  .장착머리 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+  }
+  .장착슬롯 { font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .장착등급 {
+    font-size: 10px;
+    font-weight: 800;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  .장착효과 {
+    font-size: 11px;
+    color: var(--글자);
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  .장착효과.흐림 { color: var(--흐린글자); }
+  .장착효과.힌트 { font-size: 10px; color: #5a5f78; }
+  .장착여백 { flex: 1 1 auto; }
+
+  /* ===== 장비: 가방(인벤토리) ===== */
+  .가방 {
+    margin-top: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 246px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .가방빔 {
+    text-align: center;
+    font-size: 11px;
+    color: var(--흐린글자);
+    padding: 16px 6px;
+  }
+  .가방칸 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: #14161f;
+    border: 1px solid var(--테두리);
+    border-radius: 9px;
+    padding: 8px 10px;
+  }
+  .가방정보 { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .가방이름 {
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .가방효과 {
+    font-size: 10px;
+    color: var(--흐린글자);
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  .가방효과 .업 { color: var(--경험치색); font-weight: 800; }
+  .가방버튼들 { display: flex; gap: 5px; flex: 0 0 auto; }
+
+  .장비미니버튼 {
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 9px;
+    border-radius: 7px;
+    cursor: pointer;
+    border: 1px solid var(--테두리);
+    background: #1b1e2b;
+    color: var(--글자);
+    white-space: nowrap;
+    transition: filter .12s ease, border-color .12s ease;
+  }
+  .장비미니버튼:hover { filter: brightness(1.18); }
+  .장비미니버튼.장착 { border-color: #2f6b49; color: #8fe6b0; }
+  .장비미니버튼.해제 { border-color: #6b3636; color: #ff8f88; padding: 5px 9px; font-size: 10px; }
+  .장비미니버튼.분해 { color: var(--보석색); border-color: #2a6b58; }
+
+  .전체분해버튼 {
+    margin-top: 8px;
+    width: 100%;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid var(--테두리);
+    background: transparent;
+    color: var(--흐린글자);
+    transition: border-color .12s ease, color .12s ease;
+  }
+  .전체분해버튼:hover:not(.불가) { border-color: var(--보석색); color: var(--보석색); }
+  .전체분해버튼.불가 { opacity: .4; cursor: not-allowed; }
 </style>
 </head>
 <body>
   <main class="게임판">
     <div class="정수토스트" id="정수토스트"></div>
     <div class="강타토스트" id="강타토스트"></div>
+    <div class="장비토스트" id="장비토스트"></div>
 
     <div class="머리말">
       <h1>⚔️ 자동 던전</h1>
-      <span class="빌드라벨">BUILD M5-01</span>
+      <span class="빌드라벨">BUILD M6-01</span>
     </div>
 
     <div class="층표시">
@@ -600,6 +736,16 @@
       </button>
     </section>
 
+    <section class="강화판 장비판">
+      <div class="강화제목">
+        <span>장비 (드랍 · 장착 · 분해)</span>
+        <span class="보유">🎒 <span id="가방수">0</span></span>
+      </div>
+      <div class="장착줄" id="장착목록"></div>
+      <div class="가방" id="가방목록"></div>
+      <button class="전체분해버튼" id="전체분해버튼" type="button">미장착 장비 전부 분해 💎</button>
+    </section>
+
     <section class="강화판">
       <div class="강화제목">
         <span>스킬 (스킬 포인트)</span>
@@ -662,7 +808,7 @@
       </button>
     </section>
 
-    <p class="안내">적을 잡아 경험치·골드·보석을 모으고, 레벨업으로 스킬을 키우세요. 10층마다 보스! 진행은 자동 저장됩니다.</p>
+    <p class="안내">적·보스가 <b style="color:var(--글자)">장비</b>를 떨굽니다. 장착해 더 강해지고, 안 쓰는 건 분해해 보석으로. 10층마다 보스! 진행은 자동 저장됩니다.</p>
 
     <div class="설정줄">
       <button class="초기화버튼" id="초기화버튼" type="button">↺ 처음부터 다시 시작</button>
@@ -682,7 +828,7 @@
   <div class="막" id="초기화막">
     <div class="막상자">
       <div class="막제목">⚠️ 처음부터 다시?</div>
-      <p class="막내용">정말 처음부터 다시 시작할까요? 골드·층·강화·정수·경험치·스킬이 모두 사라집니다. <b>(보석과 영구 상점은 유지됩니다.)</b></p>
+      <p class="막내용">정말 처음부터 다시 시작할까요? 골드·층·강화·정수·경험치·스킬·장비가 모두 사라집니다. <b>(보석과 영구 상점은 유지됩니다.)</b></p>
       <div class="막버튼줄">
         <button class="막버튼 보조버튼" id="초기화취소" type="button">취소</button>
         <button class="막버튼 위험버튼" id="초기화확인" type="button">초기화</button>
@@ -692,17 +838,19 @@
 
 <script>
 /* =========================================================
-   자동 던전 RPG — M5 (M4 + 오프라인보상·초기화·경험치레벨·스킬·보석상점)
+   자동 던전 RPG — M6 (M5 + 장비 시스템)
    - 영웅은 무조건 이긴다. 일반 몬스터는 반격하지 않는다.
    - 골드로 공격력 / 공격속도 강화 (덧셈), 정수로 데미지 배수 강화 (곱셈).
    - 매 10층마다 보스(큰 체력 + 제한시간). 시간 내 처치 → 정수·보석·골드 보상.
    - 적 처치 시 경험치 → 자동 레벨업 → 스킬 포인트 → 스킬 3종(황금손/정수친화/강타).
    - 보석(💎)으로 영구 상점 구매. 영구 상점·보석은 초기화해도 유지.
    - 오프라인 보상: 자리 비운 시간만큼 골드 추정 지급(최대 8시간 + 상점 보너스).
+   - M6: 적·보스가 장비 드랍(무기/장신구/유물 × 5등급). 장착 시 공격력/골드/공격속도 +%.
+         인벤토리에서 장착·교체·분해(보석 회수). 장비는 진행 데이터(초기화로 사라짐).
    ========================================================= */
 
-  const 저장키 = "dungeon_save_v5";
-  const 이전저장키들 = ["dungeon_save_v4", "dungeon_save_v3", "dungeon_save_v2", "dungeon_save_v1"]; // v5 없을 때 순서대로 이어받기
+  const 저장키 = "dungeon_save_v6";
+  const 이전저장키들 = ["dungeon_save_v5", "dungeon_save_v4", "dungeon_save_v3", "dungeon_save_v2", "dungeon_save_v1"]; // v6 없을 때 순서대로 이어받기
 
   // ----- 밸런스 수치 (자유롭게 조정 가능) -----
   const 설정 = {
@@ -748,7 +896,13 @@
     상점기본비용: 5,      // 영구 상점 항목 첫 비용(보석) — 레벨당 +기본비용 점증
     골드부스트증가: 0.10, // 골드 강화 레벨당 모든 골드 +10%
     데미지부스트증가: 0.05, // 데미지 강화 레벨당 모든 데미지 +5%
-    오프라인상한초: 28800 // 오프라인 보상 기본 상한(초) = 8시간
+    오프라인상한초: 28800, // 오프라인 보상 기본 상한(초) = 8시간
+
+    // --- 장비(M6) ---
+    장비드랍확률: 0.05,    // 일반 처치 시 장비 드랍 확률 (5%) — 보스는 100% 확정
+    장비효과단위: 0.05,    // 등급단계(1~5)당 능력치 +5% → 일반 5% … 전설 25%
+    일반등급가중: [60, 25, 10, 4, 1],   // 일반/고급/희귀/영웅/전설 — 낮은 등급일수록 흔함
+    보스등급가중: [15, 25, 30, 20, 10]  // 보스는 더 좋은 등급이 잘 나옴
   };
 
   // ----- 적 도감 (표시용 이름·그림, 층에 따라 순환) -----
@@ -772,6 +926,23 @@
     { 이름: "드래곤",   그림: "🐲" }
   ];
 
+  // ----- 장비 등급(레어도) — 인덱스 0~4, 높을수록 능력치↑·드랍률↓ -----
+  const 장비등급 = [
+    { 이름: "일반", 색: "#9aa0b5", 분해보석: 1 },
+    { 이름: "고급", 색: "#5fd97a", 분해보석: 2 },
+    { 이름: "희귀", 색: "#5aa9ff", 분해보석: 3 },
+    { 이름: "영웅", 색: "#b072ff", 분해보석: 5 },
+    { 이름: "전설", 색: "#ffb04a", 분해보석: 10 }
+  ];
+
+  // ----- 장비 슬롯 3종 — 슬롯마다 능력치 종류 고정 -----
+  const 장비슬롯목록 = ["무기", "장신구", "유물"];
+  const 장비슬롯 = {
+    무기:   { 아이콘: "🗡️", 효과: "공격력" },   // 공격력 +%
+    장신구: { 아이콘: "💍", 효과: "골드" },     // 골드 획득 +%
+    유물:   { 아이콘: "📿", 효과: "공격속도" }  // 공격속도 +%
+  };
+
   // ----- 게임 상태 -----
   //  진행 데이터(초기화로 사라짐): 골드·현재층·강화·최고층·정수·배수·경험치·레벨·스킬포인트·스킬
   //  영구 데이터(초기화로 유지):   보석·영구상점
@@ -793,6 +964,11 @@
     // M5 — 영구(초기화 유지)
     보석: 0,
     영구상점: { 골드부스트: 0, 데미지부스트: 0, 오프라인상한: 0 },
+
+    // M6 — 장비 (진행 데이터: 초기화로 사라짐)
+    인벤토리: [],                                  // [{ id, 슬롯, 등급 }] — 미장착 보관
+    장착: { 무기: null, 장신구: null, 유물: null },  // 슬롯별 장착 아이템(또는 null)
+    다음장비ID: 1,                                  // 아이템 고유 id 부여용 카운터
 
     // M5 — 오프라인
     마지막접속: 0   // 마지막 저장 시각(ms). 0이면 오프라인 보상 없음
@@ -873,6 +1049,13 @@
     오프라인상한효과: document.getElementById("오프라인상한효과"),
     오프라인상한비용: document.getElementById("오프라인상한비용"),
 
+    // M6 — 장비
+    장비토스트: document.getElementById("장비토스트"),
+    가방수: document.getElementById("가방수"),
+    장착목록: document.getElementById("장착목록"),
+    가방목록: document.getElementById("가방목록"),
+    전체분해버튼: document.getElementById("전체분해버튼"),
+
     // M5 — 모달/초기화
     초기화버튼: document.getElementById("초기화버튼"),
     오프라인막: document.getElementById("오프라인막"),
@@ -898,7 +1081,8 @@
          + 설정.레벨당공격보너스 * (상태.레벨 - 1);
   }
   function 현재공격주기() {
-    return Math.max(설정.공격주기하한, 설정.기본공격주기 - 설정.공격속도감소량 * 상태.공격속도레벨);
+    const 강화주기 = Math.max(설정.공격주기하한, 설정.기본공격주기 - 설정.공격속도감소량 * 상태.공격속도레벨);
+    return 강화주기 / (1 + 장착보너스("유물")); // 유물 속도 +% → 주기 더 짧아짐
   }
 
   // 데미지 배수 (정수로 강화 — 곱셈 성장)
@@ -909,19 +1093,25 @@
   function 데미지부스트배수() {
     return 1 + 설정.데미지부스트증가 * 상태.영구상점.데미지부스트;
   }
-  // 최종 데미지 = (기본 + 공격력강화 + 레벨보너스) × 배수 × 데미지부스트
+  // 장착 보너스 비율 (등급단계 × 5% → 0.05~0.25). 빈 슬롯은 0
+  function 장착보너스(슬롯) {
+    const 아이템 = 상태.장착[슬롯];
+    return 아이템 ? 설정.장비효과단위 * (아이템.등급 + 1) : 0;
+  }
+  // 최종 데미지 = (기본 + 공격력강화 + 레벨보너스) × 배수 × 데미지부스트 × (1 + 무기 공격력%)
   function 최종데미지() {
-    return 현재공격력() * 현재배수() * 데미지부스트배수();
+    return 현재공격력() * 현재배수() * 데미지부스트배수() * (1 + 장착보너스("무기"));
   }
   // 배수 강화 비용 (정수): 1, 2, 3 … 으로 점증
   function 배수비용() {
     return 상태.배수강화레벨 + 1;
   }
 
-  // 골드 획득 배수 (황금손 스킬 + 골드부스트 영구상점)
+  // 골드 획득 배수 (황금손 스킬 + 골드부스트 영구상점 + 장신구 장비%)
   function 골드배수() {
     return (1 + 설정.황금손증가 * 상태.스킬.황금손)
-         * (1 + 설정.골드부스트증가 * 상태.영구상점.골드부스트);
+         * (1 + 설정.골드부스트증가 * 상태.영구상점.골드부스트)
+         * (1 + 장착보너스("장신구"));
   }
   // 기본 골드량에 배수 적용 (소수점 버림)
   function 골드량적용(기본) {
@@ -1006,6 +1196,169 @@
     return { 초: 흐른초, 골드: 골드 };
   }
 
+  // ===== 장비(M6) =====
+
+  // 등급 가중 굴림 → 등급 인덱스(0~4)
+  function 등급굴림(가중) {
+    let 총 = 0;
+    for (const w of 가중) 총 += w;
+    let r = Math.random() * 총;
+    for (let i = 0; i < 가중.length; i++) {
+      r -= 가중[i];
+      if (r < 0) return i;
+    }
+    return 가중.length - 1; // 부동소수점 극단값 안전장치: 끝까지 갔으면 최고 등급
+  }
+
+  // 장비 한 개 드랍 → 인벤토리에 추가 + 토스트 (보스면 좋은 등급 가중)
+  function 장비드랍(보스여부) {
+    const 슬롯 = 장비슬롯목록[Math.floor(Math.random() * 장비슬롯목록.length)];
+    const 등급 = 등급굴림(보스여부 ? 설정.보스등급가중 : 설정.일반등급가중);
+    const 아이템 = { id: 상태.다음장비ID++, 슬롯: 슬롯, 등급: 등급 };
+    상태.인벤토리.push(아이템);
+    장비드랍토스트(아이템);
+    장비화면갱신();
+  }
+
+  // 아이템 능력치 퍼센트(정수: 5,10,15,20,25)
+  function 장비퍼센트(아이템) {
+    return Math.round(설정.장비효과단위 * (아이템.등급 + 1) * 100);
+  }
+
+  // 가방의 아이템 장착 (같은 슬롯에 끼던 건 가방으로 되돌림 = 교체)
+  function 장착하기(id) {
+    const idx = 상태.인벤토리.findIndex(function (x) { return x.id === id; });
+    if (idx < 0) return;
+    const 아이템 = 상태.인벤토리[idx];
+    상태.인벤토리.splice(idx, 1);
+    const 기존 = 상태.장착[아이템.슬롯];
+    상태.장착[아이템.슬롯] = 아이템;
+    if (기존) 상태.인벤토리.push(기존); // 끼고 있던 장비는 가방으로
+    저장();
+    화면갱신();
+    장비화면갱신();
+  }
+
+  // 장착 해제 (가방으로 되돌림)
+  function 해제하기(슬롯) {
+    const 아이템 = 상태.장착[슬롯];
+    if (!아이템) return;
+    상태.장착[슬롯] = null;
+    상태.인벤토리.push(아이템);
+    저장();
+    화면갱신();
+    장비화면갱신();
+  }
+
+  // 분해 → 보석 회수 (등급 높을수록 많이)
+  function 분해하기(id) {
+    const idx = 상태.인벤토리.findIndex(function (x) { return x.id === id; });
+    if (idx < 0) return;
+    const 아이템 = 상태.인벤토리[idx];
+    상태.인벤토리.splice(idx, 1);
+    상태.보석 += 장비등급[아이템.등급].분해보석;
+    저장();
+    화면갱신();
+    장비화면갱신();
+  }
+
+  // 미장착 장비 전부 분해 (정리용). 장착 중인 건 안전
+  function 전체분해() {
+    if (상태.인벤토리.length === 0) return;
+    let 회수 = 0;
+    for (const it of 상태.인벤토리) 회수 += 장비등급[it.등급].분해보석;
+    if (!confirm("가방의 미장착 장비 " + 상태.인벤토리.length + "개를 모두 분해할까요?\n보석 +" + 회수 + " 💎  (장착 중인 장비는 안전합니다)")) return;
+    상태.인벤토리 = [];
+    상태.보석 += 회수;
+    저장();
+    화면갱신();
+    장비화면갱신();
+  }
+
+  // "획득! [등급] 슬롯" 토스트 (등급 색으로)
+  function 장비드랍토스트(아이템) {
+    const 등급 = 장비등급[아이템.등급];
+    요소.장비토스트.textContent = "획득! " + 장비슬롯[아이템.슬롯].아이콘 + " [" + 등급.이름 + "] " + 아이템.슬롯;
+    요소.장비토스트.style.borderColor = 등급.색;
+    요소.장비토스트.style.color = 등급.색;
+    요소.장비토스트.classList.remove("보임");
+    void 요소.장비토스트.offsetWidth;
+    요소.장비토스트.classList.add("보임");
+  }
+
+  // 장착 슬롯 3칸 + 가방(인벤토리) 다시 그리기 (장비 변동 시에만 호출 — 매 틱 X)
+  function 장비화면갱신() {
+    // --- 장착 슬롯 3칸 ---
+    let 장착html = "";
+    for (const 슬롯 of 장비슬롯목록) {
+      const 정보 = 장비슬롯[슬롯];
+      const 아이템 = 상태.장착[슬롯];
+      if (아이템) {
+        const 등급 = 장비등급[아이템.등급];
+        장착html +=
+          '<div class="장착칸 찼음">' +
+            '<div class="장착머리">' +
+              '<span class="장착슬롯">' + 정보.아이콘 + ' ' + 슬롯 + '</span>' +
+              '<span class="장착등급" style="color:' + 등급.색 + '">' + 등급.이름 + '</span>' +
+            '</div>' +
+            '<div class="장착효과">' + 정보.효과 + ' +' + 장비퍼센트(아이템) + '%</div>' +
+            '<div class="장착여백"></div>' +
+            '<button class="장비미니버튼 해제" data-act="해제" data-slot="' + 슬롯 + '">해제</button>' +
+          '</div>';
+      } else {
+        장착html +=
+          '<div class="장착칸">' +
+            '<div class="장착머리">' +
+              '<span class="장착슬롯">' + 정보.아이콘 + ' ' + 슬롯 + '</span>' +
+            '</div>' +
+            '<div class="장착효과 흐림">비어 있음</div>' +
+            '<div class="장착여백"></div>' +
+            '<div class="장착효과 힌트">' + 정보.효과 + ' +%</div>' +
+          '</div>';
+      }
+    }
+    요소.장착목록.innerHTML = 장착html;
+
+    // --- 가방(인벤토리) ---
+    요소.가방수.textContent = 상태.인벤토리.length;
+    const 스크롤 = 요소.가방목록.scrollTop;
+
+    if (상태.인벤토리.length === 0) {
+      요소.가방목록.innerHTML = '<div class="가방빔">가방이 비어 있어요. 적·보스를 잡아 장비를 모으세요.</div>';
+      요소.전체분해버튼.disabled = true;
+      요소.전체분해버튼.classList.add("불가");
+      return;
+    }
+
+    // 등급 높은 순 → 같으면 슬롯 순으로 정렬
+    const 정렬 = 상태.인벤토리.slice().sort(function (a, b) {
+      return (b.등급 - a.등급) || (장비슬롯목록.indexOf(a.슬롯) - 장비슬롯목록.indexOf(b.슬롯));
+    });
+
+    let html = "";
+    for (const it of 정렬) {
+      const 등급 = 장비등급[it.등급];
+      const 정보 = 장비슬롯[it.슬롯];
+      const 장착중 = 상태.장착[it.슬롯];
+      const 더좋음 = 장착중 ? (it.등급 > 장착중.등급) : true; // 빈 슬롯이거나 더 높은 등급이면 ▲
+      html +=
+        '<div class="가방칸">' +
+          '<div class="가방정보">' +
+            '<span class="가방이름" style="color:' + 등급.색 + '">' + 정보.아이콘 + ' [' + 등급.이름 + '] ' + it.슬롯 + '</span>' +
+            '<span class="가방효과">' + 정보.효과 + ' +' + 장비퍼센트(it) + '%' + (더좋음 ? ' <span class="업">▲ 업글</span>' : '') + '</span>' +
+          '</div>' +
+          '<div class="가방버튼들">' +
+            '<button class="장비미니버튼 장착" data-act="장착" data-id="' + it.id + '">장착</button>' +
+            '<button class="장비미니버튼 분해" data-act="분해" data-id="' + it.id + '">분해 +' + 등급.분해보석 + '💎</button>' +
+          '</div>' +
+        '</div>';
+    }
+    요소.가방목록.innerHTML = html;
+    요소.가방목록.scrollTop = 스크롤;
+    요소.전체분해버튼.disabled = false;
+    요소.전체분해버튼.classList.remove("불가");
+  }
+
   // 새 적 등장 (현재 층 기준 — 보스 층이면 보스)
   function 적생성() {
     const 기본체력 = 층별적체력(상태.현재층);
@@ -1064,9 +1417,11 @@
       상태.보석 += 1;                          // 보스 처치 시 보석 +1 확정
       경험치획득(설정.보스경험치);
       보스보상토스트(정수획득, 1);
+      장비드랍(true);                          // 보스는 장비 드랍 확정(좋은 등급 잘 나옴)
     } else {
       상태.골드 += 골드량적용(일반골드(상태.현재층));
       if (Math.random() < 설정.보석드랍확률) 상태.보석 += 1; // 일반은 낮은 확률로 보석
+      if (Math.random() < 설정.장비드랍확률) 장비드랍(false); // 일반은 낮은 확률로 장비
       경험치획득(설정.일반경험치);
     }
     상태.현재층 += 1;
@@ -1312,6 +1667,9 @@
         스킬: 상태.스킬,
         보석: 상태.보석,
         영구상점: 상태.영구상점,
+        인벤토리: 상태.인벤토리,
+        장착: 상태.장착,
+        다음장비ID: 상태.다음장비ID,
         마지막접속: 상태.마지막접속
       }));
     } catch (오류) {
@@ -1349,10 +1707,36 @@
       if (typeof 데이터.영구상점.오프라인상한 === "number" && 데이터.영구상점.오프라인상한 >= 0) 상태.영구상점.오프라인상한 = 데이터.영구상점.오프라인상한;
     }
 
+    // v6 — 장비(인벤토리/장착). 저장된 id는 신뢰하지 않고 로드 시 새로 부여(중복/누락 방지)
+    상태.인벤토리 = [];
+    if (Array.isArray(데이터.인벤토리)) {
+      for (const it of 데이터.인벤토리) {
+        if (유효장비(it)) 상태.인벤토리.push({ id: 0, 슬롯: it.슬롯, 등급: it.등급 });
+      }
+    }
+    상태.장착 = { 무기: null, 장신구: null, 유물: null };
+    if (데이터.장착 && typeof 데이터.장착 === "object") {
+      for (const 슬롯 of 장비슬롯목록) {
+        const it = 데이터.장착[슬롯];
+        if (유효장비(it) && it.슬롯 === 슬롯) 상태.장착[슬롯] = { id: 0, 슬롯: 슬롯, 등급: it.등급 };
+      }
+    }
+    let _다음id = 1;
+    for (const it of 상태.인벤토리) it.id = _다음id++;
+    for (const 슬롯 of 장비슬롯목록) if (상태.장착[슬롯]) 상태.장착[슬롯].id = _다음id++;
+    상태.다음장비ID = _다음id;
+
     // v5 — 마지막 접속(오프라인 보상용). 없으면 0 → 첫 접속은 오프라인 보상 없음
     if (typeof 데이터.마지막접속 === "number" && 데이터.마지막접속 > 0) 상태.마지막접속 = 데이터.마지막접속;
 
     if (상태.현재층 > 상태.최고층) 상태.최고층 = 상태.현재층; // 최고층은 항상 현재층 이상
+  }
+
+  // 저장된 장비 아이템 유효성 검사
+  function 유효장비(it) {
+    return it && typeof it === "object"
+      && 장비슬롯목록.indexOf(it.슬롯) >= 0
+      && typeof it.등급 === "number" && it.등급 >= 0 && it.등급 < 장비등급.length;
   }
 
   // localStorage 복원 (v5 우선, 없으면 v4 → v3 → v2 → v1 순으로 이어받기)
@@ -1389,12 +1773,16 @@
     상태.레벨 = 1;
     상태.스킬포인트 = 0;
     상태.스킬 = { 황금손: 0, 정수친화: 0, 강타: 0 };
+    상태.인벤토리 = [];                                  // 장비는 진행 데이터 → 초기화로 사라짐
+    상태.장착 = { 무기: null, 장신구: null, 유물: null };
+    상태.다음장비ID = 1;
     // 보석·영구상점은 그대로 유지
     누적시간 = 0;
     강타누적 = 0;
     적생성();
     저장();
     화면갱신();
+    장비화면갱신();
     모달닫기(요소.초기화막);
   }
 
@@ -1442,6 +1830,21 @@
     요소.데미지부스트버튼.addEventListener("click", function () { 상점구매("데미지부스트"); });
     요소.오프라인상한버튼.addEventListener("click", function () { 상점구매("오프라인상한"); });
 
+    // 장비: 가방·장착 버튼 (이벤트 위임 — 동적 생성 버튼 대응)
+    요소.가방목록.addEventListener("click", function (e) {
+      const 버튼 = e.target.closest("button[data-act]");
+      if (!버튼) return;
+      const 동작 = 버튼.dataset.act;
+      if (동작 === "장착") 장착하기(Number(버튼.dataset.id));
+      else if (동작 === "분해") 분해하기(Number(버튼.dataset.id));
+    });
+    요소.장착목록.addEventListener("click", function (e) {
+      const 버튼 = e.target.closest("button[data-act]");
+      if (!버튼) return;
+      if (버튼.dataset.act === "해제") 해제하기(버튼.dataset.slot);
+    });
+    요소.전체분해버튼.addEventListener("click", 전체분해);
+
     // 초기화 버튼 + 모달
     요소.초기화버튼.addEventListener("click", function () { 모달열기(요소.초기화막); });
     요소.초기화취소.addEventListener("click", function () { 모달닫기(요소.초기화막); });
@@ -1449,6 +1852,7 @@
 
     적생성();
     화면갱신();
+    장비화면갱신();
 
     if (오프) 오프라인보상표시(오프); // 모았으면 안내창
 
