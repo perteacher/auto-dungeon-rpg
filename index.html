@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>자동 던전 RPG · BUILD M8-01</title>
+<title>자동 던전 RPG · BUILD M9-01</title>
 <style>
   /* ===== 전역 스타일 ===== */
   :root {
@@ -769,6 +769,115 @@
     border-color: #9a63f0;
     color: #1f1230;
   }
+
+  /* ===== M9: 항상 보이는 상태 바 (sticky HUD) ===== */
+  .상태바 {
+    position: sticky;
+    top: 6px;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    background: linear-gradient(180deg, #1b1f30, #161824);
+    border: 1px solid var(--테두리);
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(0,0,0,.45);
+  }
+  .상태재화 { display: flex; flex-wrap: wrap; gap: 6px; }
+  .재화칩 {
+    flex: 1 1 auto;
+    min-width: 66px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background: #0f1119;
+    border: 1px solid var(--테두리);
+    border-radius: 9px;
+    padding: 6px 8px;
+  }
+  .칩아이콘 { font-size: 13px; line-height: 1; }
+  .칩값 { font-size: 14px; font-weight: 800; font-family: ui-monospace, Consolas, monospace; }
+  .골드칩 .칩값 { color: var(--금색); }
+  .정수칩 .칩값 { color: var(--정수색); }
+  .보석칩 .칩값 { color: var(--보석색); }
+  .환생칩 .칩값 { color: var(--환생색); }
+
+  .상태스탯 { display: flex; flex-wrap: wrap; gap: 6px; }
+  .스탯칩 {
+    flex: 1 1 auto;
+    min-width: 88px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: #0f1119;
+    border: 1px solid var(--테두리);
+    border-radius: 9px;
+    padding: 6px 9px;
+  }
+  .스탯칩.층칩 {
+    flex: 1 1 100%;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .스탯라벨, .스탯딱지 { font-size: 10px; color: var(--흐린글자); }
+  .스탯딱지 { letter-spacing: 2px; }
+  .스탯값 { font-size: 14px; font-weight: 800; font-family: ui-monospace, Consolas, monospace; }
+  .스탯값 .흐림 { color: var(--흐린글자); font-weight: 600; font-size: 11px; }
+  .스탯값 b { color: #fff; }
+  .배수글자 { color: var(--배수색); }
+  .레벨글자 { color: var(--경험치색); }
+
+  /* 좁은 화면: 재화 2×2, 스탯 2열 — 상태 바를 짧고 균형 있게 */
+  @media (max-width: 440px) {
+    .재화칩 { flex: 1 1 calc(50% - 3px); }
+    .스탯칩 { flex: 1 1 calc(50% - 3px); }
+    .스탯칩.층칩 {
+      flex: 1 1 calc(50% - 3px);
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 2px;
+    }
+  }
+
+  /* ===== M9: 접이식 패널 (아코디언) ===== */
+  .패널 {
+    background: #181b27;
+    border: 1px solid var(--테두리);
+    border-radius: 12px;
+    padding: 2px 10px 10px;
+  }
+  .패널:not(.열림) { padding-bottom: 2px; }
+  /* 닫힌 패널: 헤더만 보이고 나머지 직계 자식은 숨김 */
+  .패널:not(.열림) > :not(.패널헤더) { display: none; }
+  .패널헤더 {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-start;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 8px 2px;
+    border-radius: 8px;
+    transition: background .12s ease;
+  }
+  .패널헤더:hover { background: rgba(255,255,255,.04); }
+  .패널헤더 > span:first-child { flex: 1 1 auto; text-align: left; }
+  .화살 {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: var(--흐린글자);
+    letter-spacing: 0;
+    transition: transform .18s ease;
+  }
+  .패널.열림 .화살 { transform: rotate(180deg); }
 </style>
 </head>
 <body>
@@ -779,27 +888,39 @@
 
     <div class="머리말">
       <h1>⚔️ 자동 던전</h1>
-      <span class="빌드라벨">BUILD M8-01</span>
+      <span class="빌드라벨">BUILD M9-01</span>
     </div>
 
-    <div class="층표시">
-      <div class="딱지" id="딱지">DUNGEON FLOOR</div>
-      <div class="숫자" id="현재층">1</div>
-      <div class="최고기록">최고 <span id="최고층">1</span>층</div>
-    </div>
-
-    <div class="사냥줄">
-      <button class="사냥화살" id="층내림" type="button" aria-label="사냥 층 내리기">◀</button>
-      <div class="사냥정보">
-        <span class="사냥딱지">사냥터</span>
-        <span class="사냥층" id="사냥층표시">1층</span>
+    <!-- ===== M9: 항상 보이는 상태 바 (재화 4종 + 층 + 핵심 스탯) ===== -->
+    <div class="상태바" id="상태바">
+      <div class="상태재화">
+        <div class="재화칩 골드칩"><span class="칩아이콘">💰</span><span class="칩값" id="골드">0</span></div>
+        <div class="재화칩 정수칩"><span class="칩아이콘">💠</span><span class="칩값" id="정수">0</span></div>
+        <div class="재화칩 보석칩"><span class="칩아이콘">💎</span><span class="칩값" id="보석">0</span></div>
+        <div class="재화칩 환생칩"><span class="칩아이콘">🌀</span><span class="칩값" id="상태환생석">0</span></div>
       </div>
-      <button class="사냥화살" id="층올림" type="button" aria-label="사냥 층 올리기">▶</button>
-      <button class="고정토글버튼" id="고정토글버튼" type="button">📍 고정 OFF</button>
+      <div class="상태스탯">
+        <div class="스탯칩 층칩">
+          <span class="스탯딱지" id="딱지">DUNGEON FLOOR</span>
+          <span class="스탯값"><b id="현재층">1</b>층 <span class="흐림">· 최고 <span id="최고층">1</span></span></span>
+        </div>
+        <div class="스탯칩">
+          <span class="스탯라벨">🗡️ 데미지 / 주기</span>
+          <span class="스탯값" id="영웅정보">10 / 1.00초</span>
+        </div>
+        <div class="스탯칩">
+          <span class="스탯라벨">✖️ 배수</span>
+          <span class="스탯값 배수글자" id="배수표시">×1.00</span>
+        </div>
+        <div class="스탯칩">
+          <span class="스탯라벨">⭐ 레벨</span>
+          <span class="스탯값 레벨글자">Lv.<span id="레벨">1</span></span>
+        </div>
+      </div>
     </div>
 
     <div class="레벨줄">
-      <div class="레벨딱지">⭐ Lv.<span id="레벨">1</span></div>
+      <div class="레벨딱지">⭐ XP</div>
       <div class="경험치틀">
         <div class="경험치바" id="경험치바"></div>
         <div class="경험치수치" id="경험치수치">0 / 10 XP</div>
@@ -820,31 +941,28 @@
       </div>
     </section>
 
-    <div class="정보줄">
-      <div class="정보칸 골드칸">
-        <div class="라벨">💰 보유 골드</div>
-        <div class="값" id="골드">0</div>
+    <!-- ===== M9: 사냥터 (접이식) ===== -->
+    <section class="강화판 패널" data-패널="사냥">
+      <button class="강화제목 패널헤더" type="button" aria-expanded="false">
+        <span>사냥터 (고정 · 이동)</span>
+        <span class="화살">▾</span>
+      </button>
+      <div class="사냥줄">
+        <button class="사냥화살" id="층내림" type="button" aria-label="사냥 층 내리기">◀</button>
+        <div class="사냥정보">
+          <span class="사냥딱지">사냥터</span>
+          <span class="사냥층" id="사냥층표시">1층</span>
+        </div>
+        <button class="사냥화살" id="층올림" type="button" aria-label="사냥 층 올리기">▶</button>
+        <button class="고정토글버튼" id="고정토글버튼" type="button">📍 고정 OFF</button>
       </div>
-      <div class="정보칸 보석칸">
-        <div class="라벨">💎 보석</div>
-        <div class="값" id="보석">0</div>
-      </div>
-      <div class="정보칸 정수칸">
-        <div class="라벨">💠 보스 정수</div>
-        <div class="값" id="정수">0</div>
-      </div>
-      <div class="정보칸 배수칸">
-        <div class="라벨">✖️ 데미지 배수</div>
-        <div class="값" id="배수표시">×1.00</div>
-      </div>
-      <div class="정보칸 넓게">
-        <div class="라벨">🗡️ 데미지 / 주기</div>
-        <div class="값" id="영웅정보">10 / 1.00초</div>
-      </div>
-    </div>
+    </section>
 
-    <section class="강화판">
-      <div class="강화제목"><span>강화 (골드 · 정수)</span></div>
+    <section class="강화판 패널 열림" data-패널="강화">
+      <button class="강화제목 패널헤더" type="button" aria-expanded="true">
+        <span>강화 (골드 · 정수)</span>
+        <span class="화살">▾</span>
+      </button>
 
       <div class="강화옵션줄">
         <div class="일괄모드" id="일괄모드">
@@ -880,21 +998,23 @@
       </button>
     </section>
 
-    <section class="강화판 장비판">
-      <div class="강화제목">
+    <section class="강화판 장비판 패널" data-패널="장비">
+      <button class="강화제목 패널헤더" type="button" aria-expanded="false">
         <span>장비 (드랍 · 장착 · 분해)</span>
         <span class="보유">🎒 <span id="가방수">0</span></span>
-      </div>
+        <span class="화살">▾</span>
+      </button>
       <div class="장착줄" id="장착목록"></div>
       <div class="가방" id="가방목록"></div>
       <button class="전체분해버튼" id="전체분해버튼" type="button">미장착 장비 전부 분해 💎</button>
     </section>
 
-    <section class="강화판">
-      <div class="강화제목">
+    <section class="강화판 패널" data-패널="스킬">
+      <button class="강화제목 패널헤더" type="button" aria-expanded="false">
         <span>스킬 (스킬 포인트)</span>
         <span class="보유 포인트">SP <span id="스킬포인트">0</span></span>
-      </div>
+        <span class="화살">▾</span>
+      </button>
 
       <button class="강화칸" id="황금손버튼" type="button">
         <span class="강화머리">
@@ -921,11 +1041,12 @@
       </button>
     </section>
 
-    <section class="강화판">
-      <div class="강화제목">
+    <section class="강화판 패널" data-패널="상점">
+      <button class="강화제목 패널헤더" type="button" aria-expanded="false">
         <span>영구 상점 (보석 · 초기화해도 유지)</span>
         <span class="보유 보석">💎 <span id="상점보석">0</span></span>
-      </div>
+        <span class="화살">▾</span>
+      </button>
 
       <button class="강화칸" id="골드부스트버튼" type="button">
         <span class="강화머리">
@@ -952,11 +1073,12 @@
       </button>
     </section>
 
-    <section class="강화판">
-      <div class="강화제목">
+    <section class="강화판 패널" data-패널="환생">
+      <button class="강화제목 패널헤더" type="button" aria-expanded="false">
         <span>환생 (환생석 · 영구)</span>
         <span class="보유 환생석라벨">🌀 <span id="환생석">0</span></span>
-      </div>
+        <span class="화살">▾</span>
+      </button>
 
       <button class="강화칸 환생실행칸" id="환생버튼" type="button">
         <span class="강화머리">
@@ -1044,8 +1166,8 @@
          인벤토리에서 장착·교체·분해(보석 회수). 장비는 진행 데이터(초기화로 사라짐).
    ========================================================= */
 
-  const 저장키 = "dungeon_save_v8";
-  const 이전저장키들 = ["dungeon_save_v7", "dungeon_save_v6", "dungeon_save_v5", "dungeon_save_v4", "dungeon_save_v3", "dungeon_save_v2", "dungeon_save_v1"]; // v8 없을 때 순서대로 이어받기
+  const 저장키 = "dungeon_save_v9";
+  const 이전저장키들 = ["dungeon_save_v8", "dungeon_save_v7", "dungeon_save_v6", "dungeon_save_v5", "dungeon_save_v4", "dungeon_save_v3", "dungeon_save_v2", "dungeon_save_v1"]; // v9 없을 때 순서대로 이어받기
 
   // ----- 밸런스 수치 (자유롭게 조정 가능) -----
   const 설정 = {
@@ -1074,9 +1196,10 @@
     // --- 보스 정수 & 배수 강화(M4) ---
     배수증가율: 1.1,     // 데미지 배수 = 배수증가율^배수강화레벨 (곱으로 누적)
 
-    // --- 경험치/레벨(M5) ---
-    일반경험치: 1,        // 일반 처치 시 XP
-    보스경험치: 10,       // 보스 처치 시 XP
+    // --- 경험치/레벨(M5·M9) ---
+    일반경험치: 1,        // 1층 일반 처치 시 기본 XP
+    경험치층계수: 5,      // M9: 일반 XP = 일반경험치 + floor((층-1)/계수) → 깊을수록 ↑
+    보스경험치배수: 10,   // M9: 보스 XP = 그 층 일반 XP × 배수
     레벨경험계수: 10,     // 필요 XP = 레벨 × 계수
     레벨당공격보너스: 1,  // 레벨업마다 기본 공격력 +N
 
@@ -1184,6 +1307,9 @@
     일괄모드: 1,        // 1 | 10 | "MAX" — 한 번에 사는 수량
     자동강화: false,    // 켜두면 매 틱 가능한 강화 자동 구매
 
+    // M9 — 접이식 패널 열림 상태 (UI 환경설정: 초기화·환생해도 유지). 기본은 강화만 펼침
+    패널열림: { 강화: true, 사냥: false, 장비: false, 스킬: false, 상점: false, 환생: false },
+
     // M8 — 사냥터 고정 (진행 데이터: 환생/초기화로 풀림)
     고정모드: false,   // ON이면 현재층에 머물러 farming (전진·보스 없음)
 
@@ -1206,6 +1332,8 @@
 
   // 화면 요소 미리 잡아두기
   const 요소 = {
+    게임판: document.querySelector(".게임판"),
+    상태환생석: document.getElementById("상태환생석"),
     현재층: document.getElementById("현재층"),
     골드: document.getElementById("골드"),
     영웅정보: document.getElementById("영웅정보"),
@@ -1413,6 +1541,13 @@
   }
 
   // ----- 경험치 / 레벨 -----
+  // M9 — 사냥터(층) 비례 경험치: 깊은 층일수록 더 많이 (골드가 층 비례인 것과 짝)
+  function 일반경험치량(층) {
+    return 설정.일반경험치 + Math.floor((층 - 1) / 설정.경험치층계수);
+  }
+  function 보스경험치량(층) {
+    return 일반경험치량(층) * 설정.보스경험치배수;
+  }
   // 다음 레벨까지 필요한 XP
   function 필요경험치() {
     return 상태.레벨 * 설정.레벨경험계수;
@@ -1681,14 +1816,14 @@
       const 정수획득 = 정수보상(상태.현재층); // 시간 내 처치라서 드랍 (시간 초과는 적처치 안 탐)
       상태.정수 += 정수획득;
       상태.보석 += 1;                          // 보스 처치 시 보석 +1 확정
-      경험치획득(설정.보스경험치);
+      경험치획득(보스경험치량(상태.현재층));   // M9: 층 비례 보스 XP
       보스보상토스트(정수획득, 1);
       장비드랍(true);                          // 보스는 장비 드랍 확정(좋은 등급 잘 나옴)
     } else {
       상태.골드 += 골드량적용(일반골드(상태.현재층));
       if (Math.random() < 설정.보석드랍확률) 상태.보석 += 1; // 일반은 낮은 확률로 보석
       if (Math.random() < 설정.장비드랍확률) 장비드랍(false); // 일반은 낮은 확률로 장비
-      경험치획득(설정.일반경험치);
+      경험치획득(일반경험치량(상태.현재층));   // M9: 층 비례 일반 XP
     }
     if (!상태.고정모드) {                     // 고정 중엔 같은 층에 머묾(전진 X)
       상태.현재층 += 1;
@@ -1867,6 +2002,29 @@
     버튼.classList.toggle("불가", !가능);
   }
 
+  // ===== M9: 접이식 패널(아코디언) =====
+  // 저장된 열림 상태를 DOM에 반영 (시작 시 1회)
+  function 패널상태적용() {
+    for (const 섹션 of document.querySelectorAll("[data-패널]")) {
+      const 키 = 섹션.dataset.패널;
+      const 열림 = !!상태.패널열림[키];
+      섹션.classList.toggle("열림", 열림);
+      const 헤더 = 섹션.querySelector(".패널헤더");
+      if (헤더) 헤더.setAttribute("aria-expanded", 열림 ? "true" : "false");
+    }
+  }
+
+  // 헤더 클릭 → 해당 패널 펼침/접힘 토글 + 저장
+  function 패널토글(섹션) {
+    const 키 = 섹션.dataset.패널;
+    if (!(키 in 상태.패널열림)) return;
+    상태.패널열림[키] = !상태.패널열림[키];
+    섹션.classList.toggle("열림", 상태.패널열림[키]);
+    const 헤더 = 섹션.querySelector(".패널헤더");
+    if (헤더) 헤더.setAttribute("aria-expanded", 상태.패널열림[키] ? "true" : "false");
+    저장();
+  }
+
   // 게임 루프 1회 (틱간격마다 호출)
   function 틱() {
     const 경과 = 설정.틱간격 / 1000;
@@ -1910,6 +2068,7 @@
     요소.정수.textContent = 상태.정수;
     요소.보석.textContent = 상태.보석;
     요소.상점보석.textContent = 상태.보석;
+    요소.상태환생석.textContent = 상태.환생석;   // M9: 상태 바 환생석
     요소.배수표시.textContent = "×" + 현재배수().toFixed(2);
 
     // 레벨 / XP
@@ -2072,6 +2231,7 @@
         다음장비ID: 상태.다음장비ID,
         일괄모드: 상태.일괄모드,
         자동강화: 상태.자동강화,
+        패널열림: 상태.패널열림,
         고정모드: 상태.고정모드,
         환생석: 상태.환생석,
         환생강화: 상태.환생강화,
@@ -2135,6 +2295,13 @@
     // v7 — 자동/일괄 강화 설정
     if (데이터.일괄모드 === 1 || 데이터.일괄모드 === 10 || 데이터.일괄모드 === "MAX") 상태.일괄모드 = 데이터.일괄모드;
     if (typeof 데이터.자동강화 === "boolean") 상태.자동강화 = 데이터.자동강화;
+
+    // v9 — 접이식 패널 열림 상태
+    if (데이터.패널열림 && typeof 데이터.패널열림 === "object") {
+      for (const k of Object.keys(상태.패널열림)) {
+        if (typeof 데이터.패널열림[k] === "boolean") 상태.패널열림[k] = 데이터.패널열림[k];
+      }
+    }
 
     // v8 — 사냥터 고정 + 환생
     if (typeof 데이터.고정모드 === "boolean") 상태.고정모드 = 데이터.고정모드;
@@ -2311,6 +2478,15 @@
     요소.층내림.addEventListener("click", function () { 사냥층이동(-1); });
     요소.층올림.addEventListener("click", function () { 사냥층이동(1); });
     요소.고정토글버튼.addEventListener("click", 고정토글);
+
+    // M9 — 접이식 패널 헤더 클릭(이벤트 위임). 헤더만 토글, 내부 버튼은 영향 없음
+    요소.게임판.addEventListener("click", function (e) {
+      const 헤더 = e.target.closest(".패널헤더");
+      if (!헤더) return;
+      const 섹션 = 헤더.closest("[data-패널]");
+      if (섹션) 패널토글(섹션);
+    });
+    패널상태적용(); // 저장된 펼침/접힘 상태 복원
 
     // 환생 강화 버튼 (환생석 소비)
     요소.환생데미지버튼.addEventListener("click", function () { 환생강화구매("데미지"); });
