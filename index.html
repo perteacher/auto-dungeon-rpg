@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>자동 던전 RPG · BUILD M7-01</title>
+<title>자동 던전 RPG · BUILD M8-01</title>
 <style>
   /* ===== 전역 스타일 ===== */
   :root {
@@ -19,6 +19,7 @@
     --배수색: #b69cff;
     --경험치색: #7fd957;
     --보석색: #74e1b6;
+    --환생색: #c79bff;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -697,6 +698,77 @@
     font-size: 11px;
     margin-right: 3px;
   }
+
+  /* ===== 사냥터 고정 컨트롤 ===== */
+  .사냥줄 {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .사냥화살 {
+    flex: 0 0 auto;
+    width: 38px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    border-radius: 9px;
+    cursor: pointer;
+    border: 1px solid var(--테두리);
+    background: #14161f;
+    color: var(--글자);
+    transition: border-color .12s ease, background .12s ease, opacity .12s ease;
+  }
+  .사냥화살:hover:not(:disabled) { border-color: #4a5180; background: #181b27; }
+  .사냥화살:disabled { opacity: .3; cursor: not-allowed; }
+  .사냥정보 {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #14161f;
+    border: 1px solid var(--테두리);
+    border-radius: 9px;
+    padding: 5px 8px;
+  }
+  .사냥딱지 { font-size: 10px; letter-spacing: 2px; color: var(--흐린글자); }
+  .사냥층 { font-size: 15px; font-weight: 800; font-family: ui-monospace, Consolas, monospace; }
+  .고정토글버튼 {
+    flex: 0 0 auto;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 0 14px;
+    border-radius: 9px;
+    cursor: pointer;
+    border: 1px solid var(--테두리);
+    background: #14161f;
+    color: var(--흐린글자);
+    white-space: nowrap;
+    transition: border-color .12s ease, color .12s ease, background .12s ease;
+  }
+  .고정토글버튼:hover { border-color: #4a5180; color: var(--글자); }
+  .고정토글버튼.켜짐 {
+    background: linear-gradient(180deg, #3a2f12, #2a2310);
+    border-color: var(--금색);
+    color: var(--금색);
+  }
+
+  /* ===== 환생 ===== */
+  .보유.환생석라벨 { color: var(--환생색); }
+  .강화비용.환생석비용 { color: var(--환생색); }
+  .강화비용.환생비용 { color: var(--환생색); }
+  .환생실행칸 {
+    border-color: #4a3a6e;
+    background: linear-gradient(180deg, #221b34, #181426);
+  }
+  .환생실행칸:hover:not(.불가) { border-color: var(--환생색); }
+  .막버튼.환생확인버튼 {
+    background: linear-gradient(180deg, #b88cff, #9a63f0);
+    border-color: #9a63f0;
+    color: #1f1230;
+  }
 </style>
 </head>
 <body>
@@ -707,13 +779,23 @@
 
     <div class="머리말">
       <h1>⚔️ 자동 던전</h1>
-      <span class="빌드라벨">BUILD M7-01</span>
+      <span class="빌드라벨">BUILD M8-01</span>
     </div>
 
     <div class="층표시">
       <div class="딱지" id="딱지">DUNGEON FLOOR</div>
       <div class="숫자" id="현재층">1</div>
       <div class="최고기록">최고 <span id="최고층">1</span>층</div>
+    </div>
+
+    <div class="사냥줄">
+      <button class="사냥화살" id="층내림" type="button" aria-label="사냥 층 내리기">◀</button>
+      <div class="사냥정보">
+        <span class="사냥딱지">사냥터</span>
+        <span class="사냥층" id="사냥층표시">1층</span>
+      </div>
+      <button class="사냥화살" id="층올림" type="button" aria-label="사냥 층 올리기">▶</button>
+      <button class="고정토글버튼" id="고정토글버튼" type="button">📍 고정 OFF</button>
     </div>
 
     <div class="레벨줄">
@@ -870,6 +952,45 @@
       </button>
     </section>
 
+    <section class="강화판">
+      <div class="강화제목">
+        <span>환생 (환생석 · 영구)</span>
+        <span class="보유 환생석라벨">🌀 <span id="환생석">0</span></span>
+      </div>
+
+      <button class="강화칸 환생실행칸" id="환생버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">🌀 환생하기 <span class="강화레벨" id="환생횟수표시">0회</span></span>
+          <span class="강화효과" id="환생안내">최고 50층 도달 시 가능</span>
+        </span>
+        <span class="강화비용 환생비용"><span id="환생획득">+0</span> 🌀</span>
+      </button>
+
+      <button class="강화칸" id="환생데미지버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">⚔️ 데미지 강화 <span class="강화레벨" id="환생데미지레벨">Lv.0</span></span>
+          <span class="강화효과" id="환생데미지효과">모든 데미지 +0%</span>
+        </span>
+        <span class="강화비용 환생석비용"><span id="환생데미지비용">1</span> 🌀</span>
+      </button>
+
+      <button class="강화칸" id="환생골드버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">💰 골드 강화 <span class="강화레벨" id="환생골드레벨">Lv.0</span></span>
+          <span class="강화효과" id="환생골드효과">골드 획득 +0%</span>
+        </span>
+        <span class="강화비용 환생석비용"><span id="환생골드비용">1</span> 🌀</span>
+      </button>
+
+      <button class="강화칸" id="환생정수버튼" type="button">
+        <span class="강화머리">
+          <span class="강화이름">💠 정수 강화 <span class="강화레벨" id="환생정수레벨">Lv.0</span></span>
+          <span class="강화효과" id="환생정수효과">정수 획득 +0%</span>
+        </span>
+        <span class="강화비용 환생석비용"><span id="환생정수비용">1</span> 🌀</span>
+      </button>
+    </section>
+
     <p class="안내">적·보스가 <b style="color:var(--글자)">장비</b>를 떨굽니다. 장착해 더 강해지고, 안 쓰는 건 분해해 보석으로. 10층마다 보스! 진행은 자동 저장됩니다.</p>
 
     <div class="설정줄">
@@ -898,9 +1019,21 @@
     </div>
   </div>
 
+  <!-- 환생 확인 모달 -->
+  <div class="막" id="환생막">
+    <div class="막상자">
+      <div class="막제목">🌀 환생할까요?</div>
+      <p class="막내용" id="환생막내용">환생하면 진행이 초기화되고 <b>환생석을</b> 얻습니다.</p>
+      <div class="막버튼줄">
+        <button class="막버튼 보조버튼" id="환생취소" type="button">취소</button>
+        <button class="막버튼 환생확인버튼" id="환생확인" type="button">환생</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 /* =========================================================
-   자동 던전 RPG — M7 (M6 + 적·보스 다양화 연출 + 자동/일괄 강화)
+   자동 던전 RPG — M8 (M7 + 사냥터 고정 + 환생/환생강화)
    - 영웅은 무조건 이긴다. 일반 몬스터는 반격하지 않는다.
    - 골드로 공격력 / 공격속도 강화 (덧셈), 정수로 데미지 배수 강화 (곱셈).
    - 매 10층마다 보스(큰 체력 + 제한시간). 시간 내 처치 → 정수·보석·골드 보상.
@@ -911,8 +1044,8 @@
          인벤토리에서 장착·교체·분해(보석 회수). 장비는 진행 데이터(초기화로 사라짐).
    ========================================================= */
 
-  const 저장키 = "dungeon_save_v7";
-  const 이전저장키들 = ["dungeon_save_v6", "dungeon_save_v5", "dungeon_save_v4", "dungeon_save_v3", "dungeon_save_v2", "dungeon_save_v1"]; // v7 없을 때 순서대로 이어받기
+  const 저장키 = "dungeon_save_v8";
+  const 이전저장키들 = ["dungeon_save_v7", "dungeon_save_v6", "dungeon_save_v5", "dungeon_save_v4", "dungeon_save_v3", "dungeon_save_v2", "dungeon_save_v1"]; // v8 없을 때 순서대로 이어받기
 
   // ----- 밸런스 수치 (자유롭게 조정 가능) -----
   const 설정 = {
@@ -964,7 +1097,12 @@
     장비드랍확률: 0.05,    // 일반 처치 시 장비 드랍 확률 (5%) — 보스는 100% 확정
     장비효과단위: 0.05,    // 등급단계(1~5)당 능력치 +5% → 일반 5% … 전설 25%
     일반등급가중: [60, 25, 10, 4, 1],   // 일반/고급/희귀/영웅/전설 — 낮은 등급일수록 흔함
-    보스등급가중: [15, 25, 30, 20, 10]  // 보스는 더 좋은 등급이 잘 나옴
+    보스등급가중: [15, 25, 30, 20, 10], // 보스는 더 좋은 등급이 잘 나옴
+
+    // --- 환생(M8) ---
+    환생가능층: 50,        // 최고 도달 층 ≥ N 이어야 환생 가능
+    환생석나눔: 5,         // 환생석 지급 = floor(최고층 / N) → 50층=10개
+    환생강화증가: 0.05     // 환생 강화 항목당 레벨당 +5% (데미지/골드/정수)
   };
 
   // ----- 적 도감: 10층 구간(테마)마다 다른 적 풀. 깊어질수록 험한 종류 -----
@@ -1045,6 +1183,14 @@
     // M7 — 자동/일괄 강화 설정(골드 강화 한정) — 환경설정 성격, 초기화해도 유지
     일괄모드: 1,        // 1 | 10 | "MAX" — 한 번에 사는 수량
     자동강화: false,    // 켜두면 매 틱 가능한 강화 자동 구매
+
+    // M8 — 사냥터 고정 (진행 데이터: 환생/초기화로 풀림)
+    고정모드: false,   // ON이면 현재층에 머물러 farming (전진·보스 없음)
+
+    // M8 — 환생 (영구: 환생/초기화로도 유지)
+    환생석: 0,                              // 환생 재화 🌀
+    환생강화: { 데미지: 0, 골드: 0, 정수: 0 }, // 환생석으로 사는 영구 보너스
+    환생횟수: 0,                            // 누적 환생 횟수(표시용)
 
     // M5 — 오프라인
     마지막접속: 0   // 마지막 저장 시각(ms). 0이면 오프라인 보상 없음
@@ -1137,6 +1283,31 @@
     가방목록: document.getElementById("가방목록"),
     전체분해버튼: document.getElementById("전체분해버튼"),
 
+    // M8 — 사냥터 고정
+    층내림: document.getElementById("층내림"),
+    층올림: document.getElementById("층올림"),
+    사냥층표시: document.getElementById("사냥층표시"),
+    고정토글버튼: document.getElementById("고정토글버튼"),
+
+    // M8 — 환생
+    환생석: document.getElementById("환생석"),
+    환생횟수표시: document.getElementById("환생횟수표시"),
+    환생버튼: document.getElementById("환생버튼"),
+    환생안내: document.getElementById("환생안내"),
+    환생획득: document.getElementById("환생획득"),
+    환생데미지버튼: document.getElementById("환생데미지버튼"),
+    환생데미지레벨: document.getElementById("환생데미지레벨"),
+    환생데미지효과: document.getElementById("환생데미지효과"),
+    환생데미지비용: document.getElementById("환생데미지비용"),
+    환생골드버튼: document.getElementById("환생골드버튼"),
+    환생골드레벨: document.getElementById("환생골드레벨"),
+    환생골드효과: document.getElementById("환생골드효과"),
+    환생골드비용: document.getElementById("환생골드비용"),
+    환생정수버튼: document.getElementById("환생정수버튼"),
+    환생정수레벨: document.getElementById("환생정수레벨"),
+    환생정수효과: document.getElementById("환생정수효과"),
+    환생정수비용: document.getElementById("환생정수비용"),
+
     // M5 — 모달/초기화
     초기화버튼: document.getElementById("초기화버튼"),
     오프라인막: document.getElementById("오프라인막"),
@@ -1144,7 +1315,13 @@
     오프라인받기: document.getElementById("오프라인받기"),
     초기화막: document.getElementById("초기화막"),
     초기화취소: document.getElementById("초기화취소"),
-    초기화확인: document.getElementById("초기화확인")
+    초기화확인: document.getElementById("초기화확인"),
+
+    // M8 — 환생 모달
+    환생막: document.getElementById("환생막"),
+    환생막내용: document.getElementById("환생막내용"),
+    환생취소: document.getElementById("환생취소"),
+    환생확인: document.getElementById("환생확인")
   };
 
   // 층 번호로 적 최대 체력 계산
@@ -1174,25 +1351,30 @@
   function 데미지부스트배수() {
     return 1 + 설정.데미지부스트증가 * 상태.영구상점.데미지부스트;
   }
+  // 환생 강화 배수 (영구, +5%/레벨) — 데미지/골드/정수
+  function 환생데미지배수() { return 1 + 설정.환생강화증가 * 상태.환생강화.데미지; }
+  function 환생골드배수()   { return 1 + 설정.환생강화증가 * 상태.환생강화.골드; }
+  function 환생정수배수()   { return 1 + 설정.환생강화증가 * 상태.환생강화.정수; }
   // 장착 보너스 비율 (등급단계 × 5% → 0.05~0.25). 빈 슬롯은 0
   function 장착보너스(슬롯) {
     const 아이템 = 상태.장착[슬롯];
     return 아이템 ? 설정.장비효과단위 * (아이템.등급 + 1) : 0;
   }
-  // 최종 데미지 = (기본 + 공격력강화 + 레벨보너스) × 배수 × 데미지부스트 × (1 + 무기 공격력%)
+  // 최종 데미지 = (기본+강화+레벨) × 배수 × 데미지부스트 × (1+무기%) × 환생데미지
   function 최종데미지() {
-    return 현재공격력() * 현재배수() * 데미지부스트배수() * (1 + 장착보너스("무기"));
+    return 현재공격력() * 현재배수() * 데미지부스트배수() * (1 + 장착보너스("무기")) * 환생데미지배수();
   }
   // 배수 강화 비용 (정수): 1, 2, 3 … 으로 점증
   function 배수비용() {
     return 상태.배수강화레벨 + 1;
   }
 
-  // 골드 획득 배수 (황금손 스킬 + 골드부스트 영구상점 + 장신구 장비%)
+  // 골드 획득 배수 (황금손 스킬 + 골드부스트 영구상점 + 장신구 장비% + 환생골드)
   function 골드배수() {
     return (1 + 설정.황금손증가 * 상태.스킬.황금손)
          * (1 + 설정.골드부스트증가 * 상태.영구상점.골드부스트)
-         * (1 + 장착보너스("장신구"));
+         * (1 + 장착보너스("장신구"))
+         * 환생골드배수();
   }
   // 기본 골드량에 배수 적용 (소수점 버림)
   function 골드량적용(기본) {
@@ -1224,9 +1406,10 @@
     return 일반골드(층) * 설정.보스보상배율;
   }
 
-  // 보스 정수 드랍 (층 ÷ 보스주기 = 10층 1, 20층 2 …) + 정수친화 스킬 보너스
+  // 보스 정수 드랍 (층 ÷ 보스주기 = 10층 1, 20층 2 …) + 정수친화 스킬 보너스 × 환생정수
   function 정수보상(층) {
-    return Math.floor(층 / 설정.보스주기) + 설정.정수친화증가 * 상태.스킬.정수친화;
+    const 기본 = Math.floor(층 / 설정.보스주기) + 설정.정수친화증가 * 상태.스킬.정수친화;
+    return Math.floor(기본 * 환생정수배수());
   }
 
   // ----- 경험치 / 레벨 -----
@@ -1445,7 +1628,7 @@
   // 새 적 등장 (현재 층 기준 — 보스 층이면 보스)
   function 적생성() {
     const 기본체력 = 층별적체력(상태.현재층);
-    if (보스층인가(상태.현재층)) {
+    if (!상태.고정모드 && 보스층인가(상태.현재층)) { // 고정 중엔 보스 안 뜸 (farming만)
       보스전투중 = true;
       적최대체력 = Math.round(기본체력 * 설정.보스체력배율);
       보스남은시간 = 설정.보스제한시간;
@@ -1507,8 +1690,10 @@
       if (Math.random() < 설정.장비드랍확률) 장비드랍(false); // 일반은 낮은 확률로 장비
       경험치획득(설정.일반경험치);
     }
-    상태.현재층 += 1;
-    if (상태.현재층 > 상태.최고층) 상태.최고층 = 상태.현재층;
+    if (!상태.고정모드) {                     // 고정 중엔 같은 층에 머묾(전진 X)
+      상태.현재층 += 1;
+      if (상태.현재층 > 상태.최고층) 상태.최고층 = 상태.현재층;
+    }
     적생성();
     저장();
   }
@@ -1520,6 +1705,49 @@
     누적시간 = 0;
     적생성(); // 일반 몬스터부터 다시 (골드 수입 재개)
     저장();
+  }
+
+  // ===== 사냥터 고정(M8) =====
+
+  // 주어진 층에서 보스 층이면 아래로 내려 가장 가까운 비보스 층 반환(최소 1층)
+  function 비보스스냅(층) {
+    let f = 층;
+    while (f >= 1 && 보스층인가(f)) f--;
+    return (f < 1) ? 1 : f;
+  }
+
+  // 방향(-1/+1)으로 갈 수 있는 다음 사냥 층(보스 층 건너뜀, [1, 최고층] 범위). 없으면 null
+  function 다음사냥층(방향) {
+    let 목표 = 상태.현재층 + 방향;
+    while (목표 >= 1 && 목표 <= 상태.최고층 && 보스층인가(목표)) 목표 += 방향;
+    if (목표 < 1 || 목표 > 상태.최고층) return null;
+    return 목표;
+  }
+
+  // ◀ ▶ : 고정 중일 때 farming 층 변경
+  function 사냥층이동(방향) {
+    if (!상태.고정모드) return;
+    const 목표 = 다음사냥층(방향);
+    if (목표 === null) return;
+    상태.현재층 = 목표;
+    누적시간 = 0; 강타누적 = 0;
+    적생성();
+    저장();
+    화면갱신();
+  }
+
+  // [고정] 토글 — 켤 때 현재 층이 보스 층/범위 밖이면 가까운 비보스 층으로 스냅
+  function 고정토글() {
+    상태.고정모드 = !상태.고정모드;
+    if (상태.고정모드) {
+      let f = Math.min(상태.현재층, 상태.최고층);
+      if (f < 1) f = 1;
+      상태.현재층 = 비보스스냅(f); // 보스 층이면 가까운 비보스 층으로
+      누적시간 = 0; 강타누적 = 0;
+      적생성(); // 보스였다면 일반 적으로 다시 생성
+    }
+    저장();
+    화면갱신();
   }
 
   // ===== 자동/일괄 강화(M7) — 골드 강화(공격력·공격속도)에만 적용 =====
@@ -1707,6 +1935,14 @@
       요소.딱지.textContent = "DUNGEON FLOOR";
     }
 
+    // 사냥터 고정 컨트롤
+    요소.사냥층표시.textContent = 상태.현재층 + "층";
+    요소.고정토글버튼.classList.toggle("켜짐", 상태.고정모드);
+    요소.고정토글버튼.textContent = 상태.고정모드 ? "📍 고정 ON" : "📍 고정 OFF";
+    버튼적용(요소.층내림, 상태.고정모드 && 다음사냥층(-1) !== null);
+    버튼적용(요소.층올림, 상태.고정모드 && 다음사냥층(1) !== null);
+    if (상태.고정모드) 요소.딱지.textContent = "🔒 사냥터 고정";
+
     // 영웅 현재 능력치 (최종 데미지 = (기본+강화+레벨)×배수×부스트)
     요소.영웅정보.textContent = Math.round(최종데미지()) + " / " + 현재공격주기().toFixed(2) + "초";
 
@@ -1783,6 +2019,34 @@
     요소.오프라인상한효과.textContent = "오프라인 보상 최대 " + (8 + 상태.영구상점.오프라인상한) + "시간";
     요소.오프라인상한비용.textContent = 오프비;
     버튼적용(요소.오프라인상한버튼, 상태.보석 >= 오프비);
+
+    // ----- 환생 패널 -----
+    요소.환생석.textContent = 상태.환생석;
+    요소.환생횟수표시.textContent = 상태.환생횟수 + "회";
+    const 환생ok = 환생가능();
+    요소.환생획득.textContent = "+" + 환생석지급량();
+    요소.환생안내.textContent = 환생ok
+      ? "지금 환생 → 환생석 +" + 환생석지급량() + " 획득"
+      : "최고 " + 설정.환생가능층 + "층 도달 시 가능 (현재 " + 상태.최고층 + "층)";
+    버튼적용(요소.환생버튼, 환생ok);
+
+    const 환뎀비 = 환생강화비용("데미지");
+    요소.환생데미지레벨.textContent = "Lv." + 상태.환생강화.데미지;
+    요소.환생데미지효과.textContent = "모든 데미지 +" + Math.round(설정.환생강화증가 * 100 * 상태.환생강화.데미지) + "%";
+    요소.환생데미지비용.textContent = 환뎀비;
+    버튼적용(요소.환생데미지버튼, 상태.환생석 >= 환뎀비);
+
+    const 환골비 = 환생강화비용("골드");
+    요소.환생골드레벨.textContent = "Lv." + 상태.환생강화.골드;
+    요소.환생골드효과.textContent = "골드 획득 +" + Math.round(설정.환생강화증가 * 100 * 상태.환생강화.골드) + "%";
+    요소.환생골드비용.textContent = 환골비;
+    버튼적용(요소.환생골드버튼, 상태.환생석 >= 환골비);
+
+    const 환정비 = 환생강화비용("정수");
+    요소.환생정수레벨.textContent = "Lv." + 상태.환생강화.정수;
+    요소.환생정수효과.textContent = "정수 획득 +" + Math.round(설정.환생강화증가 * 100 * 상태.환생강화.정수) + "%";
+    요소.환생정수비용.textContent = 환정비;
+    버튼적용(요소.환생정수버튼, 상태.환생석 >= 환정비);
   }
 
   // localStorage 저장 (진행 데이터 + 영구 데이터 + 마지막 접속 시각)
@@ -1808,6 +2072,10 @@
         다음장비ID: 상태.다음장비ID,
         일괄모드: 상태.일괄모드,
         자동강화: 상태.자동강화,
+        고정모드: 상태.고정모드,
+        환생석: 상태.환생석,
+        환생강화: 상태.환생강화,
+        환생횟수: 상태.환생횟수,
         마지막접속: 상태.마지막접속
       }));
     } catch (오류) {
@@ -1815,7 +2083,7 @@
     }
   }
 
-  // 세이브 데이터 → 상태 반영 (v2~v7 공통; 없는 필드는 기본값 유지)
+  // 세이브 데이터 → 상태 반영 (v2~v8 공통; 없는 필드는 기본값 유지)
   function 세이브적용(데이터) {
     if (typeof 데이터.골드 === "number") 상태.골드 = 데이터.골드;
     if (typeof 데이터.현재층 === "number" && 데이터.현재층 >= 1) 상태.현재층 = 데이터.현재층;
@@ -1868,6 +2136,17 @@
     if (데이터.일괄모드 === 1 || 데이터.일괄모드 === 10 || 데이터.일괄모드 === "MAX") 상태.일괄모드 = 데이터.일괄모드;
     if (typeof 데이터.자동강화 === "boolean") 상태.자동강화 = 데이터.자동강화;
 
+    // v8 — 사냥터 고정 + 환생
+    if (typeof 데이터.고정모드 === "boolean") 상태.고정모드 = 데이터.고정모드;
+    if (상태.고정모드 && 보스층인가(상태.현재층)) 상태.현재층 = 비보스스냅(상태.현재층); // 손상 세이브 방어
+    if (typeof 데이터.환생석 === "number" && 데이터.환생석 >= 0) 상태.환생석 = 데이터.환생석;
+    if (typeof 데이터.환생횟수 === "number" && 데이터.환생횟수 >= 0) 상태.환생횟수 = 데이터.환생횟수;
+    if (데이터.환생강화 && typeof 데이터.환생강화 === "object") {
+      for (const 항목 of ["데미지", "골드", "정수"]) {
+        if (typeof 데이터.환생강화[항목] === "number" && 데이터.환생강화[항목] >= 0) 상태.환생강화[항목] = 데이터.환생강화[항목];
+      }
+    }
+
     // v5 — 마지막 접속(오프라인 보상용). 없으면 0 → 첫 접속은 오프라인 보상 없음
     if (typeof 데이터.마지막접속 === "number" && 데이터.마지막접속 > 0) 상태.마지막접속 = 데이터.마지막접속;
 
@@ -1881,7 +2160,7 @@
       && typeof it.등급 === "number" && it.등급 >= 0 && it.등급 < 장비등급.length;
   }
 
-  // localStorage 복원 (v7 우선, 없으면 v6 → … → v1 순으로 이어받기)
+  // localStorage 복원 (v8 우선, 없으면 v7 → … → v1 순으로 이어받기)
   function 복원() {
     try {
       const 현재원본 = localStorage.getItem(저장키);
@@ -1893,7 +2172,7 @@
         const 옛원본 = localStorage.getItem(옛키);
         if (옛원본) {
           세이브적용(JSON.parse(옛원본)); // 기존 값 보존 (새 값은 0/기본부터)
-          저장(); // v7 형식으로 옮겨 저장
+          저장(); // v8 형식으로 옮겨 저장
           return;
         }
       }
@@ -1902,8 +2181,8 @@
     }
   }
 
-  // ----- 초기화: 진행 데이터만 리셋, 보석/영구상점은 유지 -----
-  function 초기화실행() {
+  // ----- 진행 데이터 리셋 (초기화·환생 공용). 보석·영구상점·환생석·환생강화는 안 건드림 -----
+  function 진행리셋() {
     상태.골드 = 0;
     상태.현재층 = 1;
     상태.공격력레벨 = 0;
@@ -1915,17 +2194,50 @@
     상태.레벨 = 1;
     상태.스킬포인트 = 0;
     상태.스킬 = { 황금손: 0, 정수친화: 0, 강타: 0 };
-    상태.인벤토리 = [];                                  // 장비는 진행 데이터 → 초기화로 사라짐
+    상태.인벤토리 = [];                                  // 장비는 진행 데이터 → 사라짐
     상태.장착 = { 무기: null, 장신구: null, 유물: null };
     상태.다음장비ID = 1;
-    // 보석·영구상점은 그대로 유지
+    상태.고정모드 = false;                               // 사냥터 고정 해제 → 1층부터
     누적시간 = 0;
     강타누적 = 0;
+  }
+
+  // 초기화 버튼: 진행만 리셋 (환생석·환생강화도 유지)
+  function 초기화실행() {
+    진행리셋();
     적생성();
     저장();
     화면갱신();
     장비화면갱신();
     모달닫기(요소.초기화막);
+  }
+
+  // ----- 환생(M8) -----
+  function 환생가능() { return 상태.최고층 >= 설정.환생가능층; }
+  function 환생석지급량() { return Math.floor(상태.최고층 / 설정.환생석나눔); }
+  function 환생강화비용(항목) { return 상태.환생강화[항목] + 1; } // (레벨+1) 환생석
+
+  // 환생석으로 영구 강화 구매
+  function 환생강화구매(항목) {
+    const 비용 = 환생강화비용(항목);
+    if (상태.환생석 < 비용) return;
+    상태.환생석 -= 비용;
+    상태.환생강화[항목] += 1;
+    저장();
+    화면갱신();
+  }
+
+  // 환생 실행: 환생석 지급 후 진행 리셋 (환생석·환생강화·보석·영구상점 유지)
+  function 환생실행() {
+    if (!환생가능()) return;
+    상태.환생석 += 환생석지급량(); // 리셋 전(최고층 살아있을 때) 계산
+    상태.환생횟수 += 1;
+    진행리셋();
+    적생성();
+    저장();
+    화면갱신();
+    장비화면갱신();
+    모달닫기(요소.환생막);
   }
 
   // ----- 모달 열기/닫기 -----
@@ -1994,6 +2306,26 @@
       if (버튼.dataset.act === "해제") 해제하기(버튼.dataset.slot);
     });
     요소.전체분해버튼.addEventListener("click", 전체분해);
+
+    // 사냥터 고정 컨트롤
+    요소.층내림.addEventListener("click", function () { 사냥층이동(-1); });
+    요소.층올림.addEventListener("click", function () { 사냥층이동(1); });
+    요소.고정토글버튼.addEventListener("click", 고정토글);
+
+    // 환생 강화 버튼 (환생석 소비)
+    요소.환생데미지버튼.addEventListener("click", function () { 환생강화구매("데미지"); });
+    요소.환생골드버튼.addEventListener("click", function () { 환생강화구매("골드"); });
+    요소.환생정수버튼.addEventListener("click", function () { 환생강화구매("정수"); });
+
+    // 환생 실행 버튼 + 확인 모달
+    요소.환생버튼.addEventListener("click", function () {
+      if (!환생가능()) return;
+      요소.환생막내용.innerHTML =
+        "환생하면 진행이 초기화되고 <b>환생석 " + 환생석지급량() + "개</b>를 얻습니다.<br>(보석·영구 강화·환생 보너스는 유지)";
+      모달열기(요소.환생막);
+    });
+    요소.환생취소.addEventListener("click", function () { 모달닫기(요소.환생막); });
+    요소.환생확인.addEventListener("click", 환생실행);
 
     // 초기화 버튼 + 모달
     요소.초기화버튼.addEventListener("click", function () { 모달열기(요소.초기화막); });
