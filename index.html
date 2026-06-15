@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>자동 던전 RPG · BUILD M6-01</title>
+<title>자동 던전 RPG · BUILD M7-01</title>
 <style>
   /* ===== 전역 스타일 ===== */
   :root {
@@ -644,6 +644,59 @@
   }
   .전체분해버튼:hover:not(.불가) { border-color: var(--보석색); color: var(--보석색); }
   .전체분해버튼.불가 { opacity: .4; cursor: not-allowed; }
+
+  /* ===== 자동/일괄 강화 컨트롤 (골드 강화 전용) ===== */
+  .강화옵션줄 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 2px 0 4px;
+  }
+  .일괄모드 { display: flex; gap: 4px; }
+  .모드칸 {
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 6px 11px;
+    border-radius: 7px;
+    cursor: pointer;
+    border: 1px solid var(--테두리);
+    background: #14161f;
+    color: var(--흐린글자);
+    transition: border-color .12s ease, color .12s ease, background .12s ease;
+  }
+  .모드칸:hover { border-color: #4a5180; color: var(--글자); }
+  .모드칸.켜짐 {
+    background: linear-gradient(180deg, #2a2f4a, #1c2036);
+    border-color: #5b63a0;
+    color: #fff;
+  }
+  .자동토글 {
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 6px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    border: 1px solid var(--테두리);
+    background: #14161f;
+    color: var(--흐린글자);
+    white-space: nowrap;
+    transition: border-color .12s ease, color .12s ease, background .12s ease;
+  }
+  .자동토글:hover { border-color: #4a5180; color: var(--글자); }
+  .자동토글.켜짐 {
+    background: linear-gradient(180deg, #1f4a2f, #163a23);
+    border-color: #3a8a55;
+    color: #9ce6b4;
+  }
+  .일괄배지 {
+    color: var(--흐린글자);
+    font-weight: 800;
+    font-size: 11px;
+    margin-right: 3px;
+  }
 </style>
 </head>
 <body>
@@ -654,7 +707,7 @@
 
     <div class="머리말">
       <h1>⚔️ 자동 던전</h1>
-      <span class="빌드라벨">BUILD M6-01</span>
+      <span class="빌드라벨">BUILD M7-01</span>
     </div>
 
     <div class="층표시">
@@ -711,12 +764,21 @@
     <section class="강화판">
       <div class="강화제목"><span>강화 (골드 · 정수)</span></div>
 
+      <div class="강화옵션줄">
+        <div class="일괄모드" id="일괄모드">
+          <button class="모드칸" data-mode="1" type="button">×1</button>
+          <button class="모드칸" data-mode="10" type="button">×10</button>
+          <button class="모드칸" data-mode="MAX" type="button">MAX</button>
+        </div>
+        <button class="자동토글" id="자동강화토글" type="button">⚙️ 자동 강화 OFF</button>
+      </div>
+
       <button class="강화칸" id="공격력버튼" type="button">
         <span class="강화머리">
           <span class="강화이름">🗡️ 공격력 <span class="강화레벨" id="공격력레벨">Lv.0</span></span>
           <span class="강화효과" id="공격력효과">공격력 10</span>
         </span>
-        <span class="강화비용"><span id="공격력비용">20</span> 💰</span>
+        <span class="강화비용"><span class="일괄배지" id="공격력개수"></span><span id="공격력비용">20</span> 💰</span>
       </button>
 
       <button class="강화칸" id="공격속도버튼" type="button">
@@ -724,7 +786,7 @@
           <span class="강화이름">⚡ 공격속도 <span class="강화레벨" id="공격속도레벨">Lv.0</span></span>
           <span class="강화효과" id="공격속도효과">주기 1.00초</span>
         </span>
-        <span class="강화비용"><span id="공격속도비용">50</span> 💰</span>
+        <span class="강화비용"><span class="일괄배지" id="공격속도개수"></span><span id="공격속도비용">50</span> 💰</span>
       </button>
 
       <button class="강화칸 정수강화" id="배수버튼" type="button">
@@ -838,7 +900,7 @@
 
 <script>
 /* =========================================================
-   자동 던전 RPG — M6 (M5 + 장비 시스템)
+   자동 던전 RPG — M7 (M6 + 적·보스 다양화 연출 + 자동/일괄 강화)
    - 영웅은 무조건 이긴다. 일반 몬스터는 반격하지 않는다.
    - 골드로 공격력 / 공격속도 강화 (덧셈), 정수로 데미지 배수 강화 (곱셈).
    - 매 10층마다 보스(큰 체력 + 제한시간). 시간 내 처치 → 정수·보석·골드 보상.
@@ -849,8 +911,8 @@
          인벤토리에서 장착·교체·분해(보석 회수). 장비는 진행 데이터(초기화로 사라짐).
    ========================================================= */
 
-  const 저장키 = "dungeon_save_v6";
-  const 이전저장키들 = ["dungeon_save_v5", "dungeon_save_v4", "dungeon_save_v3", "dungeon_save_v2", "dungeon_save_v1"]; // v6 없을 때 순서대로 이어받기
+  const 저장키 = "dungeon_save_v7";
+  const 이전저장키들 = ["dungeon_save_v6", "dungeon_save_v5", "dungeon_save_v4", "dungeon_save_v3", "dungeon_save_v2", "dungeon_save_v1"]; // v7 없을 때 순서대로 이어받기
 
   // ----- 밸런스 수치 (자유롭게 조정 가능) -----
   const 설정 = {
@@ -905,25 +967,35 @@
     보스등급가중: [15, 25, 30, 20, 10]  // 보스는 더 좋은 등급이 잘 나옴
   };
 
-  // ----- 적 도감 (표시용 이름·그림, 층에 따라 순환) -----
-  const 적도감 = [
-    { 이름: "슬라임", 그림: "🟢" },
-    { 이름: "박쥐",   그림: "🦇" },
-    { 이름: "고블린", 그림: "👹" },
-    { 이름: "거미",   그림: "🕷️" },
-    { 이름: "해골",   그림: "💀" },
-    { 이름: "유령",   그림: "👻" },
-    { 이름: "오크",   그림: "👺" },
-    { 이름: "용",     그림: "🐉" }
+  // ----- 적 도감: 10층 구간(테마)마다 다른 적 풀. 깊어질수록 험한 종류 -----
+  //  ※ 외형·이름만 바뀌는 연출. 체력/보상 등 능력치는 층 공식 그대로(밸런스 영향 없음).
+  const 적구간 = [
+    { 최소층: 1,  적: [ { 이름: "고블린",   그림: "👹" }, { 이름: "슬라임",   그림: "🟢" }, { 이름: "박쥐",   그림: "🦇" } ] },
+    { 최소층: 11, 적: [ { 이름: "늑대",     그림: "🐺" }, { 이름: "오크",     그림: "🧌" } ] },
+    { 최소층: 21, 적: [ { 이름: "거미",     그림: "🕷️" }, { 이름: "스켈레톤", 그림: "💀" } ] },
+    { 최소층: 31, 적: [ { 이름: "멧돼지",   그림: "🐗" }, { 이름: "성난 오크", 그림: "🧌" }, { 이름: "독거미", 그림: "🕷️" } ] }
   ];
 
-  // ----- 보스 도감 (표시용, 보스 순서에 따라 순환) -----
+  // 층에 맞는 구간(가장 높은 최소층 이하) 찾기
+  function 적구간선택(층) {
+    let 선택 = 적구간[0];
+    for (const 구간 of 적구간) if (층 >= 구간.최소층) 선택 = 구간;
+    return 선택;
+  }
+  // 그 층의 일반 적 외형(구간 안에서 순환)
+  function 일반적외형(층) {
+    const 풀 = 적구간선택(층).적;
+    return 풀[(층 - 1) % 풀.length];
+  }
+
+  // ----- 보스 도감: 보스 구간(10·20·30…층)마다 다른 이름·이모지. 깊을수록 험한 보스 -----
   const 보스도감 = [
-    { 이름: "오우거 왕", 그림: "🧌" },
-    { 이름: "골렘",     그림: "🗿" },
-    { 이름: "리치",     그림: "🧙" },
-    { 이름: "데몬",     그림: "👿" },
-    { 이름: "드래곤",   그림: "🐲" }
+    { 이름: "오크 두목",   그림: "👺" },  // 10층
+    { 이름: "새끼 용",     그림: "🐉" },  // 20층
+    { 이름: "심연의 악마", 그림: "👿" },  // 30층
+    { 이름: "고대 골렘",   그림: "🗿" },  // 40층
+    { 이름: "리치 군주",   그림: "🧙" },  // 50층
+    { 이름: "마룡 드래곤", 그림: "🐲" }   // 60층 (이후 순환)
   ];
 
   // ----- 장비 등급(레어도) — 인덱스 0~4, 높을수록 능력치↑·드랍률↓ -----
@@ -970,6 +1042,10 @@
     장착: { 무기: null, 장신구: null, 유물: null },  // 슬롯별 장착 아이템(또는 null)
     다음장비ID: 1,                                  // 아이템 고유 id 부여용 카운터
 
+    // M7 — 자동/일괄 강화 설정(골드 강화 한정) — 환경설정 성격, 초기화해도 유지
+    일괄모드: 1,        // 1 | 10 | "MAX" — 한 번에 사는 수량
+    자동강화: false,    // 켜두면 매 틱 가능한 강화 자동 구매
+
     // M5 — 오프라인
     마지막접속: 0   // 마지막 저장 시각(ms). 0이면 오프라인 보상 없음
   };
@@ -995,10 +1071,15 @@
     공격력레벨: document.getElementById("공격력레벨"),
     공격력효과: document.getElementById("공격력효과"),
     공격력비용: document.getElementById("공격력비용"),
+    공격력개수: document.getElementById("공격력개수"),
     공격속도버튼: document.getElementById("공격속도버튼"),
     공격속도레벨: document.getElementById("공격속도레벨"),
     공격속도효과: document.getElementById("공격속도효과"),
     공격속도비용: document.getElementById("공격속도비용"),
+    공격속도개수: document.getElementById("공격속도개수"),
+    일괄모드: document.getElementById("일괄모드"),
+    모드칸들: Array.from(document.querySelectorAll("#일괄모드 .모드칸")),
+    자동강화토글: document.getElementById("자동강화토글"),
     적무대: document.getElementById("적무대"),
     딱지: document.getElementById("딱지"),
     최고층: document.getElementById("최고층"),
@@ -1119,12 +1200,14 @@
   }
 
   // 다음 강화 비용 (정수, 레벨이 오를수록 점증)
-  function 공격력비용() {
-    return Math.floor(설정.공격력기본비용 * Math.pow(설정.공격력비용배율, 상태.공격력레벨));
+  // 골드 강화 1단계 비용 (종류·가상 레벨 기준) — 일괄/자동 강화에서 누적 계산에 사용
+  function 강화단가(종류, 레벨) {
+    return (종류 === "공격력")
+      ? Math.floor(설정.공격력기본비용 * Math.pow(설정.공격력비용배율, 레벨))
+      : Math.floor(설정.공격속도기본비용 * Math.pow(설정.공격속도비용배율, 레벨));
   }
-  function 공격속도비용() {
-    return Math.floor(설정.공격속도기본비용 * Math.pow(설정.공격속도비용배율, 상태.공격속도레벨));
-  }
+  function 공격력비용() { return 강화단가("공격력", 상태.공격력레벨); }
+  function 공격속도비용() { return 강화단가("공격속도", 상태.공격속도레벨); }
 
   // 보스 층인가? (매 보스주기 층마다: 10, 20, 30…)
   function 보스층인가(층) {
@@ -1372,7 +1455,7 @@
     } else {
       보스전투중 = false;
       적최대체력 = 기본체력;
-      const 도감항목 = 적도감[(상태.현재층 - 1) % 적도감.length];
+      const 도감항목 = 일반적외형(상태.현재층);
       요소.적이름.textContent = 도감항목.이름;
       요소.적그림.textContent = 도감항목.그림;
     }
@@ -1439,23 +1522,64 @@
     저장();
   }
 
-  // 공격력 강화 구매
-  function 공격력강화() {
-    const 비용 = 공격력비용();
-    if (상태.골드 < 비용) return;        // 골드 부족 — 음수 방지
-    상태.골드 -= 비용;
-    상태.공격력레벨 += 1;
+  // ===== 자동/일괄 강화(M7) — 골드 강화(공격력·공격속도)에만 적용 =====
+
+  // 현재 골드·일괄모드로 살 수 있는 수량과 누적 비용 미리 계산(상태는 안 바꿈)
+  function 일괄미리(종류) {
+    const 목표 = (상태.일괄모드 === "MAX") ? Infinity : 상태.일괄모드;
+    let 골드 = 상태.골드;
+    let 레벨 = (종류 === "공격력") ? 상태.공격력레벨 : 상태.공격속도레벨;
+    let 개수 = 0, 총비용 = 0, 안전 = 0;
+    while (개수 < 목표 && 안전++ < 100000) {
+      if (종류 === "공격속도" && 레벨 >= 공격속도최대레벨) break; // 속도 하한 도달
+      const 비용 = 강화단가(종류, 레벨);
+      if (골드 < 비용) break;                                     // 골드 모자라면 닿는 데까지
+      골드 -= 비용; 총비용 += 비용; 레벨++; 개수++;
+    }
+    return { 개수: 개수, 총비용: 총비용 };
+  }
+
+  // 일괄(또는 ×1) 강화 구매 — 버튼 클릭 시
+  function 일괄강화(종류) {
+    const 미리 = 일괄미리(종류);
+    if (미리.개수 <= 0) return;
+    상태.골드 -= 미리.총비용;
+    if (종류 === "공격력") 상태.공격력레벨 += 미리.개수;
+    else 상태.공격속도레벨 += 미리.개수;
     저장();
     화면갱신();
   }
 
-  // 공격속도 강화 구매
-  function 공격속도강화() {
-    if (상태.공격속도레벨 >= 공격속도최대레벨) return; // 하한 도달 — 더 못 올림
-    const 비용 = 공격속도비용();
-    if (상태.골드 < 비용) return;        // 골드 부족 — 음수 방지
-    상태.골드 -= 비용;
-    상태.공격속도레벨 += 1;
+  // 자동 강화: 매 틱, 더 싼 강화부터 골드 닿는 데까지 자동 구매
+  function 자동강화처리() {
+    if (!상태.자동강화) return;
+    let 샀나 = false, 안전 = 0;
+    while (안전++ < 100000) {
+      const 공력비 = 강화단가("공격력", 상태.공격력레벨);
+      const 공력가능 = 상태.골드 >= 공력비;
+      const 속도가능 = (상태.공격속도레벨 < 공격속도최대레벨) && (상태.골드 >= 강화단가("공격속도", 상태.공격속도레벨));
+      const 속도비 = 속도가능 ? 강화단가("공격속도", 상태.공격속도레벨) : Infinity;
+      if (!공력가능 && !속도가능) break;                 // 더 못 삼 → 멈춤
+      if (공력가능 && (!속도가능 || 공력비 <= 속도비)) {   // 더 싼 쪽 먼저
+        상태.골드 -= 공력비; 상태.공격력레벨++;
+      } else {
+        상태.골드 -= 속도비; 상태.공격속도레벨++;
+      }
+      샀나 = true;
+    }
+    if (샀나) 저장();
+  }
+
+  // 일괄 모드 변경 (×1 / ×10 / MAX)
+  function 일괄모드설정(모드) {
+    상태.일괄모드 = 모드;
+    저장();
+    화면갱신();
+  }
+
+  // 자동 강화 켜기/끄기
+  function 자동강화토글() {
+    상태.자동강화 = !상태.자동강화;
     저장();
     화면갱신();
   }
@@ -1546,6 +1670,7 @@
       }
     }
 
+    자동강화처리(); // 자동 강화 ON이면 가능한 강화 자동 구매
     화면갱신();
   }
 
@@ -1585,24 +1710,35 @@
     // 영웅 현재 능력치 (최종 데미지 = (기본+강화+레벨)×배수×부스트)
     요소.영웅정보.textContent = Math.round(최종데미지()) + " / " + 현재공격주기().toFixed(2) + "초";
 
-    // 공격력 강화 패널
-    const 공력비 = 공격력비용();
+    // 공격력 강화 패널 (일괄 모드 반영 — 비용=누적, 배지=×수량)
+    const 공미리 = 일괄미리("공격력");
     요소.공격력레벨.textContent = "Lv." + 상태.공격력레벨;
     요소.공격력효과.textContent = "공격력 " + 현재공격력();
-    요소.공격력비용.textContent = 공력비;
-    버튼적용(요소.공격력버튼, 상태.골드 >= 공력비);
+    요소.공격력개수.textContent = (공미리.개수 > 1) ? "×" + 공미리.개수 + " " : "";
+    요소.공격력비용.textContent = (공미리.개수 >= 1 ? 공미리.총비용 : 공격력비용()).toLocaleString();
+    버튼적용(요소.공격력버튼, 공미리.개수 >= 1);
 
-    // 공격속도 강화 패널
+    // 공격속도 강화 패널 (일괄 모드 반영)
     요소.공격속도레벨.textContent = "Lv." + 상태.공격속도레벨;
     요소.공격속도효과.textContent = "주기 " + 현재공격주기().toFixed(2) + "초";
     if (상태.공격속도레벨 >= 공격속도최대레벨) {
+      요소.공격속도개수.textContent = "";
       요소.공격속도비용.textContent = "MAX";   // 하한 도달
       버튼적용(요소.공격속도버튼, false);
     } else {
-      const 속도비 = 공격속도비용();
-      요소.공격속도비용.textContent = 속도비;
-      버튼적용(요소.공격속도버튼, 상태.골드 >= 속도비);
+      const 속미리 = 일괄미리("공격속도");
+      요소.공격속도개수.textContent = (속미리.개수 > 1) ? "×" + 속미리.개수 + " " : "";
+      요소.공격속도비용.textContent = (속미리.개수 >= 1 ? 속미리.총비용 : 공격속도비용()).toLocaleString();
+      버튼적용(요소.공격속도버튼, 속미리.개수 >= 1);
     }
+
+    // 일괄 모드 버튼 강조 + 자동 강화 토글 상태
+    for (const b of 요소.모드칸들) {
+      const m = (b.dataset.mode === "MAX") ? "MAX" : Number(b.dataset.mode);
+      b.classList.toggle("켜짐", 상태.일괄모드 === m);
+    }
+    요소.자동강화토글.classList.toggle("켜짐", 상태.자동강화);
+    요소.자동강화토글.textContent = 상태.자동강화 ? "⚙️ 자동 강화 ON" : "⚙️ 자동 강화 OFF";
 
     // 데미지 배수 강화 패널 (정수로 구매)
     const 배수비 = 배수비용();
@@ -1670,6 +1806,8 @@
         인벤토리: 상태.인벤토리,
         장착: 상태.장착,
         다음장비ID: 상태.다음장비ID,
+        일괄모드: 상태.일괄모드,
+        자동강화: 상태.자동강화,
         마지막접속: 상태.마지막접속
       }));
     } catch (오류) {
@@ -1677,7 +1815,7 @@
     }
   }
 
-  // 세이브 데이터 → 상태 반영 (v2~v5 공통; 없는 필드는 기본값 유지)
+  // 세이브 데이터 → 상태 반영 (v2~v7 공통; 없는 필드는 기본값 유지)
   function 세이브적용(데이터) {
     if (typeof 데이터.골드 === "number") 상태.골드 = 데이터.골드;
     if (typeof 데이터.현재층 === "number" && 데이터.현재층 >= 1) 상태.현재층 = 데이터.현재층;
@@ -1726,6 +1864,10 @@
     for (const 슬롯 of 장비슬롯목록) if (상태.장착[슬롯]) 상태.장착[슬롯].id = _다음id++;
     상태.다음장비ID = _다음id;
 
+    // v7 — 자동/일괄 강화 설정
+    if (데이터.일괄모드 === 1 || 데이터.일괄모드 === 10 || 데이터.일괄모드 === "MAX") 상태.일괄모드 = 데이터.일괄모드;
+    if (typeof 데이터.자동강화 === "boolean") 상태.자동강화 = 데이터.자동강화;
+
     // v5 — 마지막 접속(오프라인 보상용). 없으면 0 → 첫 접속은 오프라인 보상 없음
     if (typeof 데이터.마지막접속 === "number" && 데이터.마지막접속 > 0) 상태.마지막접속 = 데이터.마지막접속;
 
@@ -1739,7 +1881,7 @@
       && typeof it.등급 === "number" && it.등급 >= 0 && it.등급 < 장비등급.length;
   }
 
-  // localStorage 복원 (v5 우선, 없으면 v4 → v3 → v2 → v1 순으로 이어받기)
+  // localStorage 복원 (v7 우선, 없으면 v6 → … → v1 순으로 이어받기)
   function 복원() {
     try {
       const 현재원본 = localStorage.getItem(저장키);
@@ -1751,7 +1893,7 @@
         const 옛원본 = localStorage.getItem(옛키);
         if (옛원본) {
           세이브적용(JSON.parse(옛원본)); // 기존 값 보존 (새 값은 0/기본부터)
-          저장(); // v5 형식으로 옮겨 저장
+          저장(); // v7 형식으로 옮겨 저장
           return;
         }
       }
@@ -1815,10 +1957,18 @@
     // 오프라인 보상 (저장이 마지막접속을 덮어쓰기 전에 먼저 계산)
     const 오프 = 오프라인계산();
 
-    // 강화 버튼
-    요소.공격력버튼.addEventListener("click", 공격력강화);
-    요소.공격속도버튼.addEventListener("click", 공격속도강화);
+    // 강화 버튼 (골드 강화는 일괄모드 수량만큼, 정수 배수는 단일)
+    요소.공격력버튼.addEventListener("click", function () { 일괄강화("공격력"); });
+    요소.공격속도버튼.addEventListener("click", function () { 일괄강화("공격속도"); });
     요소.배수버튼.addEventListener("click", 배수강화);
+
+    // 일괄 모드 선택(×1/×10/MAX) + 자동 강화 토글
+    요소.일괄모드.addEventListener("click", function (e) {
+      const b = e.target.closest("button[data-mode]");
+      if (!b) return;
+      일괄모드설정(b.dataset.mode === "MAX" ? "MAX" : Number(b.dataset.mode));
+    });
+    요소.자동강화토글.addEventListener("click", 자동강화토글);
 
     // 스킬 버튼
     요소.황금손버튼.addEventListener("click", function () { 스킬강화("황금손"); });
